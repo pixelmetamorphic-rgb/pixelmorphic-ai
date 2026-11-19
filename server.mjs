@@ -1,4 +1,4 @@
-import { handleGeneralChatApi } from './general-chat-lab.mjs';
+﻿import { handleGeneralChatApi } from './general-chat-lab.mjs';
 import './research-lab.mjs';
 import http from 'node:http';
 import { createUltraWorkflow, STUDIO_VERSION, PLANNER_VERSION, DEFAULT_ENGINES, WEBSITE_SYSTEM } from './ultra-workflow.mjs';
@@ -16,24 +16,24 @@ const ENGINE_CHOICES = [
   {id:'deepseek/deepseek-v4-pro',name:'DeepSeek V4-Pro'}
 ];
 const CHAT_MODES = [
-  {id:'pixelmorphic-ultra',name:'★ Pixelmorphic Ultra',description:'Auto-selects one specialist. Direct answers by default.'},
+  {id:'pixelmorphic-ultra',name:'â˜… Pixelmorphic Ultra',description:'Auto-selects one specialist. Direct answers by default.'},
   {id:'morphic-o4-flash',name:'Morphic O4 Flash',description:'Everyday questions, rewriting and quick help.',engine:'xiaomi/mimo-v2.6-flash'},
   {id:'morphic-o3',name:'Morphic O3',description:'Reasoning, comparisons and difficult explanations.',engine:'xiaomi/mimo-v2.6-pro'}
 ];
 const CODE_MODES = [
   {id:'morphic-code',name:'Morphic Code',engines:['xiaomi/mimo-v2.6-flash'],description:'Quick static pages; one call.'},
-  {id:'morphic-code-pro',name:'★ Morphic Code Pro',engines:['qwen/qwen3-coder-next'],description:'Coding specialist; one call.'},
-  {id:'morphic-code-ultra',name:'★ Morphic Code Ultra',engines:['qwen/qwen3-coder-next'],description:'2 calls: understand + implement. Local browser checks are free. Allowing repair adds at most 1 call; independent review adds 1 more.'}
+  {id:'morphic-code-pro',name:'â˜… Morphic Code Pro',engines:['qwen/qwen3-coder-next'],description:'Coding specialist; one call.'},
+  {id:'morphic-code-ultra',name:'â˜… Morphic Code Ultra',engines:['qwen/qwen3-coder-next'],description:'2 calls: understand + implement. Local browser checks are free. Allowing repair adds at most 1 call; independent review adds 1 more.'}
 ];
-const RESPONSE_POLICY = 'Start with the requested answer or deliverable. Omit greetings, praise, repeated questions, filler, and a second summary. Prefer the smallest complete useful answer. Follow the user’s requested format and length. If a missing detail would materially change the answer, ask one focused question; otherwise proceed with a brief stated assumption only when necessary. Distinguish facts, assumptions and uncertainty. Never invent sources, prices, statistics, file contents, test results or facts about the user’s business. You have no live web search, document-reading or code-execution tools here. When freshness or source access is essential, state the specific limitation briefly and ask for the source; do not pretend to verify. Do not show private chain-of-thought; give conclusions and only useful explanation. Do not claim that multiple models or a flagship label guarantees correctness.';
+const RESPONSE_POLICY = 'Start with the requested answer or deliverable. Omit greetings, praise, repeated questions, filler, and a second summary. Prefer the smallest complete useful answer. Follow the userâ€™s requested format and length. If a missing detail would materially change the answer, ask one focused question; otherwise proceed with a brief stated assumption only when necessary. Distinguish facts, assumptions and uncertainty. Never invent sources, prices, statistics, file contents, test results or facts about the userâ€™s business. You have no live web search, document-reading or code-execution tools here. When freshness or source access is essential, state the specific limitation briefly and ask for the source; do not pretend to verify. Do not show private chain-of-thought; give conclusions and only useful explanation. Do not claim that multiple models or a flagship label guarantees correctness.';
 
 // Deterministic local routing costs no inference call. This is a heuristic,
 // not a confidence score or trained router. Include recent user context for follow-ups.
 export function chooseChatEngine(messages) {
   const recent = messages.filter(m=>m.role==='user').slice(-3).map(m=>m.content).join('\n');
-  if (/```|\b(debug|refactor|javascript|typescript|python|sql|html|css|stack trace|unit tests?|code|coding)\b|कोड|कोडिंग/i.test(recent))
+  if (/```|\b(debug|refactor|javascript|typescript|python|sql|html|css|stack trace|unit tests?|code|coding)\b|à¤•à¥‹à¤¡|à¤•à¥‹à¤¡à¤¿à¤‚à¤—/i.test(recent))
     return {engine:'qwen/qwen3-coder-next',reason:'Coding request or recent coding context'};
-  if (recent.length>1600 || /\b(compare|trade.?off|analyse|analyze|derive|proof|reason|architecture|strategy|calculate|equation|audit)\b|तुलना|गणना|विश्लेषण/i.test(recent))
+  if (recent.length>1600 || /\b(compare|trade.?off|analyse|analyze|derive|proof|reason|architecture|strategy|calculate|equation|audit)\b|à¤¤à¥à¤²à¤¨à¤¾|à¤—à¤£à¤¨à¤¾|à¤µà¤¿à¤¶à¥à¤²à¥‡à¤·à¤£/i.test(recent))
     return {engine:'xiaomi/mimo-v2.6-pro',reason:'Reasoning request or substantial context'};
   return {engine:'xiaomi/mimo-v2.6-flash',reason:'Everyday request'};
 }
@@ -378,12 +378,12 @@ export function createApp(config, { fetchImpl = fetch, audit = diskAudit } = {})
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');
     const port = req.socket.localPort;
-    const hosts = [`localhost:${port}`, `127.0.0.1:${port}`];
+    const hosts = [`localhost:${port}`, `0.0.0.0:${port}`];
     if (false) {
-      return json(res, 403, { error: 'LOCAL_ONLY', message: 'Use localhost or 127.0.0.1.' });
+      return json(res, 403, { error: 'LOCAL_ONLY', message: 'Use localhost or 0.0.0.0.' });
     }
-    // Allow both localhost and 127.0.0.1 origins on the current port to prevent ORIGIN_REJECTED mismatch
-    const allowedOrigins = [`http://localhost:${port}`, `http://127.0.0.1:${port}`, ...(req.headers.origin ? [req.headers.origin] : [])];
+    // Allow both localhost and 0.0.0.0 origins on the current port to prevent ORIGIN_REJECTED mismatch
+    const allowedOrigins = [`http://localhost:${port}`, `http://0.0.0.0:${port}`, ...(req.headers.origin ? [req.headers.origin] : [])];
     if (req.headers.origin && !allowedOrigins.includes(req.headers.origin)) {
       return json(res, 403, { error: 'ORIGIN_REJECTED', message: 'Cross-origin requests are blocked.' });
     }
@@ -709,7 +709,7 @@ model: selectedModel,
 
 // Single-request safe CLI diagnostic mode: node --env-file=.env server.mjs --test-chat
 export async function runDiagnosticChat(cfg, fetchImpl = fetch) {
-  console.log('=== PIXELMORPHIC AI — 1-REQUEST CHAT DIAGNOSTIC ===');
+  console.log('=== PIXELMORPHIC AI â€” 1-REQUEST CHAT DIAGNOSTIC ===');
   console.log(`Provider     : ${cfg.providerName}`);
   console.log(`Base URL     : ${cfg.baseUrl}`);
   console.log(`Auth Scheme  : ${cfg.authScheme} (key loaded: ${!!cfg.key})`);
@@ -758,7 +758,7 @@ export async function runDiagnosticChat(cfg, fetchImpl = fetch) {
     const raw = JSON.parse(await limitedText(response.body, 200_000));
     const reply = raw?.choices?.[0]?.message?.content?.trim() ?? '(empty content)';
     const usage = usageOf(raw?.usage);
-    console.log(`[SUCCESS — HTTP ${response.status}] (${durationMs} ms)`);
+    console.log(`[SUCCESS â€” HTTP ${response.status}] (${durationMs} ms)`);
     console.log(`Model Reply  : ${reply}`);
     console.log(`Token Usage  : ${usage ? JSON.stringify(usage) : 'not reported'}`);
   } catch (err) {
@@ -773,9 +773,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (process.argv.includes('--test-chat')) {
       await runDiagnosticChat(cfg);
     } else {
-      createApp(cfg).listen(cfg.port, '127.0.0.1', () =>
+      createApp(cfg).listen(cfg.port, '0.0.0.0', () =>
         console.log(
-          `Pixelmorphic local workspace: http://127.0.0.1:${cfg.port}\nProvider: ${cfg.providerName} (${cfg.authScheme} auth)\nAPI key configured: ${!!cfg.key}; model configured: ${!!cfg.model}; generation enabled: ${cfg.enabled}`
+          `Pixelmorphic local workspace: http://0.0.0.0:${cfg.port}\nProvider: ${cfg.providerName} (${cfg.authScheme} auth)\nAPI key configured: ${!!cfg.key}; model configured: ${!!cfg.model}; generation enabled: ${cfg.enabled}`
         )
       );
     }
