@@ -13934,4 +13934,204 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     detectUserLocationClient();
   }, 120);
   setInterval(() => checkAndMountMainView(false), 3500);
+
+  /* === v81.0 MOBILE-FIRST CLEAN UI OVERHAUL (<= 860px only, desktop untouched) === */
+  (function injectV81MobileCleanCss() {
+    if (typeof document === 'undefined' || document.getElementById('pm-v81-mobile-clean-css')) return;
+    const s = document.createElement('style');
+    s.id = 'pm-v81-mobile-clean-css';
+    s.textContent = `
+      @media (max-width: 860px) {
+        html, body {
+          width: 100% !important;
+          max-width: 100vw !important;
+          overflow-x: hidden !important;
+          -webkit-text-size-adjust: 100% !important;
+        }
+        /* 1. Single Clean Mobile Top Bar (eliminate double header & right-edge clipping) */
+        html body [data-pm-host-header="1"],
+        html body > header,
+        html body .topbar,
+        html body .demo-topbar {
+          display: none !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          overflow: hidden !important;
+        }
+        html body #mc-sidebar-open-fab.mc-sidebar-open-fab {
+          position: fixed !important;
+          top: 10px !important;
+          left: 10px !important;
+          z-index: 100045 !important;
+          height: 36px !important;
+          min-width: 36px !important;
+          padding: 0 11px !important;
+          border-radius: 10px !important;
+          font-size: 13px !important;
+          font-weight: 700 !important;
+          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28) !important;
+        }
+        html body main,
+        html body .main-content,
+        html body .content {
+          padding: 0 !important;
+          margin: 0 !important;
+          width: 100% !important;
+          max-width: 100vw !important;
+        }
+        html body #mc-shell-root.mc-shell,
+        html body #mr-shell-root.mr-shell {
+          padding: 0 10px 14px 10px !important;
+          min-height: 100dvh !important;
+          width: 100% !important;
+          max-width: 100vw !important;
+          box-sizing: border-box !important;
+        }
+        html body #mc-shell-root .mc-topbar,
+        html body #mr-shell-root .mr-topbar {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 100020 !important;
+          height: 56px !important;
+          min-height: 56px !important;
+          padding: 8px 10px 8px 92px !important;
+          margin: 0 -10px 10px -10px !important;
+          width: calc(100% + 20px) !important;
+          max-width: 100vw !important;
+          border-radius: 0 !important;
+          border-left: none !important;
+          border-right: none !important;
+          backdrop-filter: blur(12px) !important;
+          gap: 8px !important;
+        }
+        html body #mc-shell-root .mc-title,
+        html body #mr-shell-root .mr-brand-title {
+          font-size: 15.5px !important;
+          font-weight: 800 !important;
+          max-width: 155px !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+        html body #mc-shell-root #mc-new-chat-btn,
+        html body #mr-shell-root #mr-new-research-btn {
+          height: 34px !important;
+          padding: 0 12px !important;
+          font-size: 12px !important;
+          border-radius: 10px !important;
+          flex-shrink: 0 !important;
+        }
+        /* 2. Clean Auth / Sign-In Portal (Sign-In card first, hide heavy marketing wall) */
+        .mc-v64-portal-grid {
+          display: flex !important;
+          flex-direction: column !important;
+          min-height: 100dvh !important;
+          padding: 0 !important;
+        }
+        .mc-v64-brand-pane {
+          padding: 18px 16px 14px 16px !important;
+          border-right: none !important;
+          border-bottom: 1px solid rgba(52, 211, 153, 0.18) !important;
+        }
+        .mc-v64-logo-row {
+          margin-bottom: 10px !important;
+        }
+        .mc-v64-hero-title {
+          font-size: 22px !important;
+          margin-bottom: 6px !important;
+        }
+        .mc-v64-hero-sub {
+          font-size: 13px !important;
+          margin-bottom: 0 !important;
+        }
+        .mc-v64-feat-grid,
+        .mc-v64-brand-footer,
+        .mc-v64-founder-pill {
+          display: none !important;
+        }
+        .mc-v64-auth-pane {
+          padding: 18px 14px 28px 14px !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        /* 3. Declutter Home Screen Hero & Studio Cards */
+        .mc-v66-slide-stage {
+          padding: 14px !important;
+          gap: 12px !important;
+          border-radius: 16px !important;
+          margin-bottom: 10px !important;
+        }
+        .mc-v66-slide-art {
+          display: none !important;
+        }
+        .mc-v66-slide-title {
+          font-size: 18px !important;
+          margin-bottom: 6px !important;
+        }
+        .mc-v66-slide-sub {
+          font-size: 12.5px !important;
+          margin-bottom: 12px !important;
+        }
+        .mc-v66-studio-cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 8px !important;
+        }
+        .mc-v66-scard {
+          padding: 11px 12px !important;
+          border-radius: 13px !important;
+        }
+        /* 4. Sleek Composer: Single-row horizontal swipeable controls, zero clutter */
+        html body #mc-shell-root #mc-composer-box.mc-composer,
+        html body #mr-shell-root #mr-composer-box.mr-composer {
+          padding: 10px 10px 9px 10px !important;
+          border-radius: 16px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        html body #mc-shell-root .mc-controls-left,
+        html body #mr-shell-root .mr-controls-left {
+          flex-wrap: nowrap !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          scrollbar-width: none !important;
+          padding-bottom: 2px !important;
+          gap: 6px !important;
+        }
+        html body #mc-shell-root .mc-controls-left::-webkit-scrollbar,
+        html body #mr-shell-root .mr-controls-left::-webkit-scrollbar {
+          display: none !important;
+        }
+        html body #mc-shell-root .mc-controls-left > *,
+        html body #mr-shell-root .mr-controls-left > * {
+          flex-shrink: 0 !important;
+        }
+        /* 5. Prevent Half-Cut Messages, Tables, Code Blocks & Modals */
+        .mc-msg, .mc-bubble, .mc-answer-card, .mc-card {
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        .mc-msg pre, .mc-bubble pre, .mc-msg table, .mc-bubble table {
+          max-width: 100% !important;
+          overflow-x: auto !important;
+          display: block !important;
+        }
+        [role="dialog"], .mc-modal-card, .mc-settings-modal, .mc-modal-panel {
+          width: calc(100vw - 20px) !important;
+          max-width: calc(100vw - 20px) !important;
+          max-height: 88dvh !important;
+          overflow-y: auto !important;
+          margin: 10px auto !important;
+          border-radius: 16px !important;
+          box-sizing: border-box !important;
+        }
+      }
+    `;
+    (document.head || document.documentElement).appendChild(s);
+  })();
 })();
+
