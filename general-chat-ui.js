@@ -8180,11 +8180,7 @@
             </div>
             <div>
               <label class="mc-set-label">Preferred Language</label>
-              <select class="mc-set-select" id="mc-pers-lang">
-                <option value="en" ${cfg.preferredLang === 'en' ? 'selected' : ''}>🌐 English</option>
-                <option value="hinglish" ${cfg.preferredLang === 'hinglish' ? 'selected' : ''}>🇮🇳 Hinglish (Hindi + English)</option>
-                <option value="hi" ${cfg.preferredLang === 'hi' ? 'selected' : ''}>🇮🇳 Hindi (देवनागरी)</option>
-              </select>
+              <select class="mc-set-select" id="mc-pers-lang"><option value="en" ${(cfg.preferredLang||"en")==="en"?"selected":""}>English (Default)</option><option value="hi" ${cfg.preferredLang==="hi"?"selected":""}>हिन्दी (Hindi)</option><option value="ta" ${cfg.preferredLang==="ta"?"selected":""}>தமிழ் (Tamil)</option><option value="bn" ${cfg.preferredLang==="bn"?"selected":""}>বাংলা (Bengali)</option><option value="zh" ${cfg.preferredLang==="zh"?"selected":""}>中文 (Mandarin)</option><option value="ja" ${cfg.preferredLang==="ja"?"selected":""}>日本語 (Japanese)</option><option value="hinglish" ${cfg.preferredLang==="hinglish"?"selected":""}>Hinglish</option></select>
             </div>
           </div>
           <div style="display:flex;justify-content:flex-end;">
@@ -8402,6 +8398,7 @@
         cfg.customStyle = document.getElementById('mc-pers-style')?.value.trim() || '';
         cfg.tone = document.getElementById('mc-pers-tone')?.value || 'balanced';
         cfg.preferredLang = document.getElementById('mc-pers-lang')?.value || 'en';
+if(window.__pmSetSiteLang)window.__pmSetSiteLang(cfg.preferredLang==='hinglish'?'en':cfg.preferredLang);
         saveUserSettings();
         showDownloadToast('🧠 Personalization instructions saved!');
       });
