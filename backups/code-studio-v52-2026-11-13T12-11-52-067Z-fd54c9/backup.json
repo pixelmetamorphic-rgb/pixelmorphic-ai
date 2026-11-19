@@ -1,0 +1,44 @@
+{
+  "version": "52.0.0",
+  "projectRoot": "C:\\Users\\harsh\\Downloads\\Pixelmorphic_Samurai_Integration (2)\\pixelmorphic-samurai",
+  "createdAt": "2026-11-13T12:11:52.087Z",
+  "state": "installed",
+  "files": [
+    {
+      "path": "general-chat-lab.mjs",
+      "existed": true,
+      "beforeHash": "356a4f4c9a285baf326fef45fde9845e05e1cdb6ff8063f86e54c27aab946879",
+      "installedHash": "5dd27035805ad3a59ca65d67b89c7491bc9cdf8828f2115b83f3a6567859afe7"
+    },
+    {
+      "path": "src/general-chat-lab.mjs",
+      "existed": true,
+      "beforeHash": "356a4f4c9a285baf326fef45fde9845e05e1cdb6ff8063f86e54c27aab946879",
+      "installedHash": "5dd27035805ad3a59ca65d67b89c7491bc9cdf8828f2115b83f3a6567859afe7"
+    },
+    {
+      "path": "public/general-chat-ui.js",
+      "existed": true,
+      "beforeHash": "82a9dce070491412db1467cd56e00b71b6abcb2a6615b693f840d1b84cdd6525",
+      "installedHash": "fb987df205c356fc2667bafefbd8afc8af7294661cd1a7e890146ba00af2018d"
+    },
+    {
+      "path": "general-chat-ui.js",
+      "existed": true,
+      "beforeHash": "82a9dce070491412db1467cd56e00b71b6abcb2a6615b693f840d1b84cdd6525",
+      "installedHash": "fb987df205c356fc2667bafefbd8afc8af7294661cd1a7e890146ba00af2018d"
+    },
+    {
+      "path": "public/studio-tools.js",
+      "existed": true,
+      "beforeHash": "b1074355ffad3d6bab1812f82b6cb395be819d7fdcbc1eb3f1b074b92a5c6d04",
+      "installedHash": "957a0fd01178203b97ee03c697aa4f2f550c21ea9251819f63ab2e79ff3c2449"
+    },
+    {
+      "path": "public/index.html",
+      "existed": true,
+      "beforeHash": "2132bdbab5652b7fe06f3a4fcce01a3e06afbd0ee2767916002301cb2adb528f",
+      "installedHash": "c992cd4b17f06dbd532947fa24413c5fdb3810b33d28320f0d73f60200064856"
+    }
+  ]
+}

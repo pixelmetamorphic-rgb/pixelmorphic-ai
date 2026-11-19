@@ -1,0 +1,25 @@
+{
+  "version": "52.0.0",
+  "files": [
+    {
+      "path": "payload/pixelmorphic-acorn-v52.mjs",
+      "sha256": "4c09beddbf61851ae40b86d32bc5b05eb0ce1ac3d0145676c2609d725abedf87",
+      "bytes": 226749
+    },
+    {
+      "path": "payload/pixelmorphic-code-core-v52.mjs",
+      "sha256": "a53636e6ecb6c1537becc96b477678c70505d060df9354c24da68406c21187de",
+      "bytes": 8112
+    },
+    {
+      "path": "payload/pixelmorphic-code-studio-v52.js",
+      "sha256": "f18010049ff27f975c95aa96756b7e86db0126ce599cc832c30d600d571606dd",
+      "bytes": 900336
+    },
+    {
+      "path": "payload/pixelmorphic-code-studio-v52.mjs",
+      "sha256": "2adf7114734e89b20c5117292c45a2c46afdce6a6bf9ed7a8cc0d7198362c47d",
+      "bytes": 15342
+    }
+  ]
+}

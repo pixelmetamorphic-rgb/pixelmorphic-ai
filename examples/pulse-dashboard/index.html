@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pulse — Business overview</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <nav class="rail" aria-label="Main navigation"><a class="logo" href="#overview" aria-label="Pulse home">p<span>·</span></a><a class="selected" href="#overview" title="Overview">▦</a><a href="#customers" title="Customers">◎</a><a href="#activity" title="Activity">◷</a><span class="avatar" aria-label="Demo account">HS</span></nav>
+    <main id="overview">
+      <header class="top"><div class="crumb">Workspace <span>/</span> Overview</div><button id="theme" aria-label="Toggle dark theme">◐ <span>Appearance</span></button></header>
+      <div class="heading"><div><p class="eyebrow">YOUR BUSINESS, AT A GLANCE</p><h1>A little clarity. A lot of momentum.</h1><p class="sub">Here’s how your business is doing today.</p></div><button id="export" class="export">↓ Export CSV</button></div>
+      <div class="demo"><span></span> Sample data · Interactive local demo</div>
+      <section class="stats" aria-label="Key performance indicators">
+        <article><p>Total revenue <span>↗</span></p><h2 id="revenue">$48,290</h2><div><b>+18.6%</b> <span>vs. previous period</span></div><svg viewBox="0 0 180 35" aria-label="Revenue trend"><path d="M0 31 18 25 36 28 54 18 72 20 90 12 108 15 126 8 144 10 162 4 180 1"/></svg></article>
+        <article><p>Active customers <span>◎</span></p><h2 id="customers-count">1,284</h2><div><b>+12.4%</b> <span>vs. previous period</span></div><svg viewBox="0 0 180 35" aria-label="Customer trend"><path d="M0 30 22 28 44 25 66 27 88 17 110 20 132 12 154 8 180 5"/></svg></article>
+        <article><p>Conversion rate <span>⌁</span></p><h2 id="conversion">4.82%</h2><div><b>+0.8 pts</b> <span>vs. previous period</span></div><svg viewBox="0 0 180 35" aria-label="Conversion trend"><path d="M0 31 20 28 40 30 60 18 80 22 100 14 120 16 140 4 160 7 180 3"/></svg></article>
+        <article><p>Avg. order value <span>↗</span></p><h2 id="average">$126.40</h2><div><b>+6.2%</b> <span>vs. previous period</span></div><svg viewBox="0 0 180 35" aria-label="Order value trend"><path d="M0 28 25 25 50 27 75 18 100 16 125 19 150 8 180 2"/></svg></article>
+      </section>
+      <div class="middle"><section class="panel chart-panel"><div class="section-head"><div><h2>Revenue over time</h2><p>A clearer picture of your growth.</p></div><div class="periods" aria-label="Chart period"><button data-period="7D">7D</button><button data-period="30D" class="active" aria-pressed="true">30D</button><button data-period="1Y">1Y</button></div></div><div class="chart-value"><strong id="chart-total">$48,290</strong><span>● Revenue</span></div><svg id="chart" viewBox="0 0 660 220" role="img" aria-label="Revenue chart for 30 days"><defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4d9875" stop-opacity=".25"/><stop offset="100%" stop-color="#4d9875" stop-opacity="0"/></linearGradient></defs><g class="grid"><path d="M38 20H650M38 70H650M38 120H650M38 170H650"/><text x="0" y="24">6k</text><text x="0" y="74">4k</text><text x="0" y="124">2k</text><text x="0" y="174">0</text></g><path id="chart-area" fill="url(#fade)"/><path id="chart-line" fill="none" stroke="#4d9875" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><g id="chart-labels" class="grid"></g></svg></section>
+      <section class="panel activity" id="activity"><div class="section-head"><div><h2>Recent activity</h2><p>The small wins add up.</p></div><span>↗</span></div><div class="event"><i>↗</i><div><b>New subscription</b><p>Alex joined the Pro plan.</p><small>12 minutes ago</small></div><strong>+$49</strong></div><div class="event"><i>✓</i><div><b>Invoice paid</b><p>Studio North · #INV-1042</p><small>38 minutes ago</small></div><strong>+$280</strong></div><div class="event"><i>◎</i><div><b>Milestone reached</b><p>1,250 active customers.</p><small>2 hours ago</small></div></div><div class="note"><b>Looking good.</b><p>Revenue is ahead of the previous period in this sample dataset.</p></div></section></div>
+      <section class="panel customer-panel" id="customers"><div class="section-head"><div><h2>Customers <span class="count" id="result-count">6</span></h2><p>The people behind the numbers.</p></div><label class="search"><span>⌕</span><input id="search" placeholder="Search customers…" aria-label="Search customers"></label></div><div class="table-wrap"><table><thead><tr><th><button id="sort-name">Customer ↕</button></th><th>Plan</th><th>Status</th><th><button id="sort-spend">Total spend ↕</button></th><th>Joined</th></tr></thead><tbody id="rows"></tbody></table><p id="empty" hidden>No customers match your search.</p></div><div class="table-foot"><span id="table-count">Showing 6 customers</span><span>Demo records · saved locally</span></div></section>
+      <footer>Pulse workspace <span>Built with Pixelmorphic Code Studio</span></footer>
+    </main>
+  </div><div id="toast" role="status" hidden></div>
+</body>
+</html>

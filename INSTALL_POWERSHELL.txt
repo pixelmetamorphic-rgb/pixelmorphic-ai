@@ -1,0 +1,20 @@
+First press Ctrl+C in the terminal currently running Pixelmorphic.
+Download Pixelmorphic_CodeStudio_v52.zip into Downloads.
+Paste the following into PowerShell:
+
+$ErrorActionPreference = "Stop"
+$proj = "C:\Users\harsh\Downloads\Pixelmorphic_Samurai_Integration (2)\pixelmorphic-samurai"
+$zip = Get-ChildItem "$env:USERPROFILE\Downloads" -Filter "Pixelmorphic_CodeStudio_v52*.zip" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if (-not $zip) { throw "Download Pixelmorphic_CodeStudio_v52.zip into Downloads first." }
+$update = Join-Path "$env:USERPROFILE\Downloads" "Pixelmorphic_CodeStudio_v52_Update"
+Expand-Archive -LiteralPath $zip.FullName -DestinationPath $update -Force
+node "$update\install.mjs" --project "$proj"
+if ($LASTEXITCODE -ne 0) { throw "Installation stopped. Read the error above." }
+Set-Location -LiteralPath $proj
+npm.cmd start
+
+Then open http://127.0.0.1:3000/#code and press Ctrl+Shift+R.
+Look for V52 in the header and click "Open working demo · no API call".
+
+Do not run the old Pixelmorphic_Restore_Clean_Site.mjs for this update.
+Rollback instructions and tested limitations are in README_FIRST.md.

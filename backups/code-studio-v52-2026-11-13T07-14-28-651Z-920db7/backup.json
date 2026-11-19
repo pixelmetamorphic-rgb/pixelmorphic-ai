@@ -1,0 +1,86 @@
+{
+  "version": "52.0.0",
+  "projectRoot": "C:\\Users\\harsh\\Downloads\\Pixelmorphic_Samurai_Integration (2)\\pixelmorphic-samurai",
+  "createdAt": "2026-11-13T07:14:28.699Z",
+  "state": "installed",
+  "files": [
+    {
+      "path": "pixelmorphic-acorn-v52.mjs",
+      "existed": false,
+      "beforeHash": null,
+      "installedHash": "4c09beddbf61851ae40b86d32bc5b05eb0ce1ac3d0145676c2609d725abedf87"
+    },
+    {
+      "path": "src/pixelmorphic-acorn-v52.mjs",
+      "existed": false,
+      "beforeHash": null,
+      "installedHash": "4c09beddbf61851ae40b86d32bc5b05eb0ce1ac3d0145676c2609d725abedf87"
+    },
+    {
+      "path": "pixelmorphic-code-core-v52.mjs",
+      "existed": false,
+      "beforeHash": null,
+      "installedHash": "a53636e6ecb6c1537becc96b477678c70505d060df9354c24da68406c21187de"
+    },
+    {
+      "path": "src/pixelmorphic-code-core-v52.mjs",
+      "existed": false,
+      "beforeHash": null,
+      "installedHash": "a53636e6ecb6c1537becc96b477678c70505d060df9354c24da68406c21187de"
+    },
+    {
+      "path": "public/pixelmorphic-code-studio-v52.js",
+      "existed": false,
+      "beforeHash": null,
+      "installedHash": "f18010049ff27f975c95aa96756b7e86db0126ce599cc832c30d600d571606dd"
+    },
+    {
+      "path": "pixelmorphic-code-studio-v52.mjs",
+      "existed": false,
+      "beforeHash": null,
+      "installedHash": "2adf7114734e89b20c5117292c45a2c46afdce6a6bf9ed7a8cc0d7198362c47d"
+    },
+    {
+      "path": "src/pixelmorphic-code-studio-v52.mjs",
+      "existed": false,
+      "beforeHash": null,
+      "installedHash": "2adf7114734e89b20c5117292c45a2c46afdce6a6bf9ed7a8cc0d7198362c47d"
+    },
+    {
+      "path": "general-chat-lab.mjs",
+      "existed": true,
+      "beforeHash": "b9c9f6e0ec67b728b36d31e3a5992f178a84b57d66c6ba2462445f8ec3d61a5d",
+      "installedHash": "0476035fa7ca144254d8c3a7725e171fb52ca70960d2178845bf6ed5fb1d96a2"
+    },
+    {
+      "path": "src/general-chat-lab.mjs",
+      "existed": true,
+      "beforeHash": "b9c9f6e0ec67b728b36d31e3a5992f178a84b57d66c6ba2462445f8ec3d61a5d",
+      "installedHash": "0476035fa7ca144254d8c3a7725e171fb52ca70960d2178845bf6ed5fb1d96a2"
+    },
+    {
+      "path": "public/general-chat-ui.js",
+      "existed": true,
+      "beforeHash": "698a31881c1f09aee43721ed5cb17d4de759742772dc7c7dbd4ddf693d3bb07e",
+      "installedHash": "31253abf63d3756e255a25bb9abe8dce7dc5e1c9713ddcba17022eec9d4db8c9"
+    },
+    {
+      "path": "general-chat-ui.js",
+      "existed": true,
+      "beforeHash": "698a31881c1f09aee43721ed5cb17d4de759742772dc7c7dbd4ddf693d3bb07e",
+      "installedHash": "31253abf63d3756e255a25bb9abe8dce7dc5e1c9713ddcba17022eec9d4db8c9"
+    },
+    {
+      "path": "public/studio-tools.js",
+      "existed": true,
+      "beforeHash": "dc8cabccdbadc00fd870abf0c374fbb14dde9d7eb037e45f72b20c0d32b9f894",
+      "installedHash": "b26f5be0a6560eef9a217f70df122d4a91619fa8e772cae819d68389a2f17728"
+    },
+    {
+      "path": "public/index.html",
+      "existed": true,
+      "beforeHash": "2132bdbab5652b7fe06f3a4fcce01a3e06afbd0ee2767916002301cb2adb528f",
+      "installedHash": "c992cd4b17f06dbd532947fa24413c5fdb3810b33d28320f0d73f60200064856"
+    }
+  ]
+}

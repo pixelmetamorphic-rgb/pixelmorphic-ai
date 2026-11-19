@@ -1,0 +1,181 @@
+import http from 'node:http';
+import { readFile, appendFile, mkdir } from 'node:fs/promises';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const root = dirname(fileURLToPath(import.meta.url));
+const BASE_URL = 'https://api.samuraiapi.io/v1';
+class ApiError extends Error {
+  constructor(status, code, message) { super(message); this.status = status; this.code = code; }
+}
+function integer(value, fallback, min, max) {
+  const n = value === undefined ? fallback : Number(value);
+  if (!Number.isInteger(n) || n < min || n > max) throw new Error('Invalid numeric server configuration.');
+  return n;
+}
+export function configuration(env = process.env) {
+  const baseUrl = (env.AI_BASE_URL || BASE_URL).replace(/\/+$/, '');
+  if (baseUrl !== BASE_URL) throw new Error('This adapter only permits the configured Samurai HTTPS endpoint.');
+  const limitField = env.AI_OUTPUT_LIMIT_FIELD || 'max_tokens';
+  if (!['max_tokens', 'max_completion_tokens'].includes(limitField)) throw new Error('Unsupported output limit field.');
+  return {
+    baseUrl, key: env.AI_API_KEY?.trim() || '', model: env.AI_MODEL?.trim() || '',
+    enabled: env.AI_ENABLE_GENERATION === 'true', limitField,
+    maxTokens: integer(env.AI_MAX_OUTPUT_TOKENS, 4096, 128, 16384),
+    timeout: integer(env.AI_TIMEOUT_MS, 120000, 100, 300000),
+    maxRequests: integer(env.AI_MAX_REQUESTS_PER_SESSION, 10, 1, 100),
+    port: integer(env.PORT, 3000, 1, 65535)
+  };
+}
+function json(res, status, data) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(data));
+}
+async function limitedText(stream, max) {
+  let n = 0; const chunks = [];
+  for await (const chunk of stream) {
+    const b = Buffer.from(chunk); n += b.length;
+    if (n > max) throw new ApiError(413, 'PAYLOAD_TOO_LARGE', 'Request or response exceeded the size limit.');
+    chunks.push(b);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+function usageOf(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {};
+  for (const k of ['prompt_tokens', 'completion_tokens', 'total_tokens']) {
+    if (Number.isSafeInteger(raw[k]) && raw[k] >= 0) out[k] = raw[k];
+  }
+  for (const [from, to] of [['prompt_tokens_details', 'cached_tokens'], ['completion_tokens_details', 'reasoning_tokens']]) {
+    if (Number.isSafeInteger(raw[from]?.[to]) && raw[from][to] >= 0) out[to] = raw[from][to];
+  }
+  return Object.keys(out).length ? out : null;
+}
+function providerError(status) {
+  if ([401, 403].includes(status)) return new ApiError(502, 'PROVIDER_AUTH', 'Provider rejected the key or model access. Check your server settings.');
+  if (status === 429) return new ApiError(429, 'PROVIDER_RATE_LIMIT', 'Provider rate or quota limit reached. Check the provider dashboard before retrying.');
+  if ([400, 404, 422].includes(status)) return new ApiError(502, 'PROVIDER_REQUEST', 'Provider rejected the model or request format. Check its model ID and API documentation.');
+  if (status === 402) return new ApiError(502, 'PROVIDER_BALANCE', 'Provider requires balance or billing activation.');
+  return new ApiError(502, 'PROVIDER_UNAVAILABLE', 'Provider request failed. Check the provider dashboard before another attempt.');
+}
+async function diskAudit(entry) {
+  const folder = join(root, 'logs');
+  await mkdir(folder, { recursive: true, mode: 0o700 });
+  await appendFile(join(folder, 'api.jsonl'), JSON.stringify(entry) + '\n', { mode: 0o600 });
+}
+export function createApp(config, { fetchImpl = fetch, audit = diskAudit } = {}) {
+  const inFlight = new Set(); const results = new Map(); const events = [];
+  let attempts = 0;
+  async function record(entry) {
+    events.unshift(entry); events.splice(100);
+    try { await audit(entry); } catch { console.error('Audit file unavailable; metadata retained in process memory.'); }
+  }
+  async function provider(path, init = {}) {
+    let response;
+    try {
+      response = await fetchImpl(config.baseUrl + path, {
+        ...init, redirect: 'error', signal: AbortSignal.timeout(config.timeout),
+        headers: { Authorization: `Bearer ${config.key}`, 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) { await response.body?.cancel(); throw providerError(response.status); }
+      const text = await limitedText(response.body, 2_000_000);
+      try { return JSON.parse(text); } catch { throw new ApiError(502, 'INVALID_PROVIDER_JSON', 'Provider returned an unexpected response format.'); }
+    } catch (e) {
+      if (e instanceof ApiError) throw e;
+      if (['TimeoutError', 'AbortError'].includes(e.name)) throw new ApiError(504, 'PROVIDER_TIMEOUT', 'Provider timed out. Billing status is unknown; check the provider dashboard before retrying.');
+      throw new ApiError(502, 'PROVIDER_NETWORK', 'Provider could not be reached. No automatic retry was sent.');
+    }
+  }
+  return http.createServer(async (req, res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    const port = req.socket.localPort;
+    const hosts = [`localhost:${port}`, `127.0.0.1:${port}`];
+    if (!hosts.includes(req.headers.host)) return json(res, 403, { error: 'LOCAL_ONLY', message: 'Use localhost or 127.0.0.1.' });
+    if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return json(res, 403, { error: 'ORIGIN_REJECTED', message: 'Cross-origin requests are blocked.' });
+    if (req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: 'ORIGIN_REJECTED' });
+    const path = new URL(req.url, 'http://localhost').pathname;
+    if (req.method === 'GET' && ['/', '/index.html', '/integration.js'].includes(path)) {
+      const file = path === '/integration.js' ? 'integration.js' : 'index.html';
+      try {
+        res.writeHead(200, { 'Content-Type': file.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+          'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-src 'self' about:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" });
+        return res.end(await readFile(join(root, 'public', file)));
+      } catch { return res.end('Application file unavailable.'); }
+    }
+    if (req.method === 'GET' && path === '/api/status') return json(res, 200, {
+      provider: 'Samurai API', baseUrl: config.baseUrl, keyConfigured: !!config.key, model: config.model,
+      enabled: config.enabled, ready: !!(config.key && config.model && config.enabled),
+      remainingAttempts: Math.max(0, config.maxRequests - attempts), maxOutputTokens: config.maxTokens,
+      protocol: 'OpenAI-compatible Chat Completions (provider compatibility unverified)', mode: 'local-owner-only'
+    });
+    if (req.method === 'GET' && path === '/api/logs') return json(res, 200, { events });
+    if (req.method !== 'POST' || !['/api/models', '/api/generate'].includes(path)) return json(res, 404, { error: 'NOT_FOUND' });
+    if (req.headers['x-pixelmorphic-client'] !== 'workspace' || !req.headers['content-type']?.startsWith('application/json')) return json(res, 403, { error: 'CLIENT_REQUIRED' });
+    let id, start, admitted = false;
+    try {
+      if (!config.key) throw new ApiError(503, 'KEY_REQUIRED', 'Add AI_API_KEY in the server .env file and restart.');
+      if (path === '/api/models') {
+        const raw = await provider('/models');
+        if (!Array.isArray(raw.data)) throw new ApiError(502, 'MODEL_LIST_FORMAT', 'Provider model listing is unsupported. Use the exact model ID from its dashboard.');
+        return json(res, 200, { models: raw.data.filter(m => typeof m?.id === 'string').slice(0, 2000).map(m => m.id) });
+      }
+      if (!config.model || !config.enabled) throw new ApiError(503, 'GENERATION_DISABLED', 'Set AI_MODEL and AI_ENABLE_GENERATION=true in .env, then restart.');
+      let body;
+      try { body = JSON.parse(await limitedText(req, 32000)); } catch (e) {
+        if (e instanceof ApiError) throw e;
+        throw new ApiError(400, 'INVALID_JSON', 'Invalid request JSON.');
+      }
+      if (typeof body?.brief !== 'string' || body.brief.trim().length < 15 || body.brief.length > 6000 || body.category !== 'code') throw new ApiError(400, 'INVALID_BRIEF', 'Provide a coding brief between 15 and 6000 characters.');
+      if (typeof body.requestId !== 'string' || !/^[a-zA-Z0-9_-]{16,80}$/.test(body.requestId)) throw new ApiError(400, 'INVALID_REQUEST_ID', 'A valid request ID is required.');
+      id = body.requestId;
+      if (results.has(id)) {
+        const saved = results.get(id);
+        if (saved.brief !== null && saved.brief !== body.brief) throw new ApiError(409, 'REQUEST_ID_REUSED', 'Use a new request ID for a different brief.');
+        return json(res, saved.status, saved.payload);
+      }
+      if (inFlight.has(id)) throw new ApiError(409, 'JOB_RUNNING', 'This request is already running.');
+      if (inFlight.size >= 1) throw new ApiError(429, 'BUSY', 'One job is already running. Wait for it to finish.');
+      if (attempts >= config.maxRequests) throw new ApiError(429, 'SESSION_LIMIT', 'Local session request limit reached. Review provider spending before restarting.');
+      attempts++; inFlight.add(id); admitted = true; start = Date.now();
+      const raw = await provider('/chat/completions', { method: 'POST', body: JSON.stringify({
+        model: config.model, stream: false, [config.limitField]: config.maxTokens,
+        messages: [
+          { role: 'system', content: 'Create a complete responsive single-file HTML/CSS website for the brief. Return only HTML starting with <!doctype html>. Use inline CSS, no JavaScript, no external resources, no forms that submit data. Use placeholders for missing business facts. Do not claim working payments or authentication. Do not include secrets. The result will be previewed with scripts and network disabled.' },
+          { role: 'user', content: body.brief.trim() }
+        ]
+      }) });
+      const usage = usageOf(raw.usage);
+      const choice = raw.choices?.[0];
+      let html = choice?.message?.content;
+      if (typeof html === 'string') html = html.trim().replace(/^```(?:html)?\s*/i, '').replace(/\s*```$/, '').trim();
+      const complete = choice?.finish_reason === 'stop' && typeof html === 'string' && /^(?:<!doctype html>\s*)?<html[\s>]/i.test(html) && /<\/html>\s*$/i.test(html);
+      if (!complete) {
+        const payload = { error: 'INCOMPLETE_OUTPUT', message: 'Model did not return a complete HTML document. Usage may be billed. Review the brief or token limit before a new attempt.', requestId: id, usage };
+        results.set(id, { brief: body.brief, status: 502, payload });
+        await record({ time: new Date().toISOString(), requestId: id, model: config.model, status: 'incomplete', durationMs: Date.now() - start, usage, cost: null });
+        return json(res, 502, payload);
+      }
+      const payload = { requestId: id, model: config.model, html, usage, cost: null, costNote: 'Cost not calculated: provider rate card not configured.' };
+      results.set(id, { brief: body.brief, status: 200, payload });
+      await record({ time: new Date().toISOString(), requestId: id, model: config.model, status: 'completed', durationMs: Date.now() - start, usage, cost: null });
+      return json(res, 200, payload);
+    } catch (err) {
+      const e = err instanceof ApiError ? err : new ApiError(500, 'SERVER_ERROR', 'Unexpected server error. Check local server status.');
+      const payload = { error: e.code, message: e.message, ...(id ? { requestId: id } : {}) };
+      if (admitted) {
+        results.set(id, { brief: null, status: e.status, payload });
+        await record({ time: new Date().toISOString(), requestId: id, model: config.model, status: 'failed', error: e.code, durationMs: Date.now() - start, usage: null, cost: null, billingStatus: 'unknown' });
+      }
+      return json(res, e.status, payload);
+    } finally { if (admitted) inFlight.delete(id); }
+  });
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    const cfg = configuration();
+    // Deliberately local-only until real user authentication and billing exist.
+    createApp(cfg).listen(cfg.port, '127.0.0.1', () => console.log(`Pixelmorphic local workspace: http://127.0.0.1:${cfg.port}\nAPI key configured: ${!!cfg.key}; model configured: ${!!cfg.model}; generation enabled: ${cfg.enabled}`));
+  } catch { console.error('Server configuration is invalid. Check .env against .env.example.'); process.exitCode = 1; }
+}

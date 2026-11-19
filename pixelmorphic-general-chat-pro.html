@@ -1,0 +1,3038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PIXELMORPHIC AI — v13.0</title>
+  <style>
+    body {
+      margin: 0;
+      background: #e9f0ec;
+      color: #111814;
+      font-family: 'Inter', -apple-system, sans-serif;
+      display: flex;
+      min-height: 100vh;
+    }
+    aside.demo-sidebar {
+      width: 240px;
+      background: #091d14;
+      color: #ffffff;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .demo-logo {
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .demo-logo-badge {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      background: #10b981;
+      color: #062116;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+    }
+    .demo-nav-item {
+      padding: 9px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.72);
+      margin-bottom: 4px;
+      cursor: pointer;
+    }
+    .demo-nav-item.active {
+      background: #ffffff;
+      color: #091d14;
+      font-weight: 700;
+    }
+    main.demo-main {
+      flex: 1;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <aside class="demo-sidebar">
+    <div class="demo-logo">
+      <span class="demo-logo-badge">PM</span>
+      <div>
+        <div>PIXELMORPHIC</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:500;">AI WORKSPACE</div>
+      </div>
+    </div>
+    <div class="demo-nav-item active">💬 General Chat</div>
+    <div class="demo-nav-item">&gt;_ Code Studio</div>
+    <div class="demo-nav-item">📖 Study Workspace</div>
+    <div class="demo-nav-item">🔬 Research Lab</div>
+  </aside>
+
+  <main class="demo-main">
+    <div id="morphic-general-chat-root"></div>
+  </main>
+
+  <script>
+/* ============================================================================
+ * PIXELMORPHIC AI — GENERAL CHAT, IMAGE STUDIO & LIBRARY UI (v14.0)
+ * Root-Level Fixes:
+ *  1. Real AI Image & Infographic Rendering (Deleted the green circle fallback!
+ *     Uses backend base64 + watermark crop for data URIs, and CORS-safe direct
+ *     rendering with CSS bottom-watermark clip for https URLs).
+ *  2. Persistent Chat History & Library (Synced to Node.js disk `morphic-storage.json`
+ *     + quota-safe localStorage so saved chats & images always load on click).
+ *  3. Complete Scrollable Left Sidebar + Gemini-Style Collapse/Close Button (`☰`).
+ *  4. Dynamic `Standard | HD` Quality Toggle (Hidden by default in General Chat;
+ *     appears only when typing an image prompt or in Image Studio).
+ * ============================================================================ */
+(function () {
+  if (window.__morphicGeneralChatV14Loaded) return;
+  window.__morphicGeneralChatV14Loaded = true;
+
+  const STORAGE_THREADS_KEY = 'pm_chat_threads_v14';
+  const STORAGE_LIBRARY_KEY = 'pm_library_items_v14';
+
+  const state = {
+    activeView: 'chat', // 'chat' | 'images' | 'library'
+    sidebarCollapsed: false,
+    chatModel: 'morphic-chat-pro',
+    webSearch: true,
+    imageQuality: 'standard', // 'standard' | 'ultra'
+    imageAspect: '3:4',
+    actionMode: 'auto',       // 'auto' | 'image' | 'ebook' | 'pdf'
+    libraryFilter: 'all',     // 'all' | 'image' | 'upload' | 'document'
+    attachments: [],
+    threads: [],
+    currentThreadId: null,
+    messages: [],
+    library: [],
+    isRunning: false,
+    elapsedTimer: null,
+    startTimeMs: 0
+  };
+
+  // Load initial state from localStorage, then sync from Node.js disk storage
+  try {
+    const savedThreads = localStorage.getItem(STORAGE_THREADS_KEY);
+    if (savedThreads) state.threads = JSON.parse(savedThreads) || [];
+    const savedLib = localStorage.getItem(STORAGE_LIBRARY_KEY);
+    if (savedLib) state.library = JSON.parse(savedLib) || [];
+  } catch (_) {}
+
+
+  function buildClientFallbackSvgUri(promptText) {
+    const p = String(promptText || '').toLowerCase();
+    let svg = '';
+    if (/\b(heart|cardiac|ventricle|atrium|aorta)\b/.test(p)) {
+      svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" width="900" height="1100">
+        <rect width="900" height="1100" fill="#f8faf9"/>
+        <rect x="28" y="28" width="844" height="1044" rx="22" fill="#ffffff" stroke="#d0e0d8" stroke-width="2"/>
+        <text x="450" y="78" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700" fill="#0b2419">HUMAN HEART ANATOMY (FOUR-CHAMBER SECTION)</text>
+        <text x="450" y="106" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" fill="#52665c">Verified Cardiovascular Reference Diagram</text>
+        <path d="M 450 350 C 450 220, 560 220, 560 320" fill="none" stroke="#dc2626" stroke-width="34" stroke-linecap="round"/>
+        <rect x="335" y="240" width="32" height="130" rx="8" fill="#2563eb"/>
+        <path d="M 295 360 C 240 390, 245 480, 315 500 L 385 480 L 385 360 Z" fill="#93c5fd" stroke="#1d4ed8" stroke-width="5"/>
+        <path d="M 305 505 C 285 605, 365 695, 445 715 L 445 495 Z" fill="#60a5fa" stroke="#1e40af" stroke-width="6"/>
+        <path d="M 485 355 C 565 355, 605 425, 565 485 L 475 485 Z" fill="#fca5a5" stroke="#b91c1c" stroke-width="5"/>
+        <path d="M 460 495 L 455 715 C 555 695, 625 585, 575 490 Z" fill="#f87171" stroke="#991b1b" stroke-width="10"/>
+        <rect x="442" y="485" width="18" height="230" rx="6" fill="#7f1d1d"/>
+        <g font-family="Inter, Arial, sans-serif" font-size="15" font-weight="600" fill="#0f172a">
+          <line x1="350" y1="265" x2="185" y2="235" stroke="#0f172a" stroke-width="2"/><circle cx="350" cy="265" r="4.5" fill="#1d4ed8"/>
+          <text x="178" y="240" text-anchor="end">Superior Vena Cava</text>
+          <line x1="505" y1="245" x2="675" y2="215" stroke="#0f172a" stroke-width="2"/><circle cx="505" cy="245" r="4.5" fill="#dc2626"/>
+          <text x="682" y="220">Aorta (Aortic Arch)</text>
+          <line x1="315" y1="425" x2="165" y2="395" stroke="#0f172a" stroke-width="2"/><circle cx="315" cy="425" r="4.5" fill="#1d4ed8"/>
+          <text x="158" y="400" text-anchor="end">Right Atrium</text>
+          <line x1="365" y1="595" x2="175" y2="595" stroke="#0f172a" stroke-width="2"/><circle cx="365" cy="595" r="4.5" fill="#1e40af"/>
+          <text x="168" y="600" text-anchor="end">Right Ventricle</text>
+          <line x1="545" y1="420" x2="705" y2="385" stroke="#0f172a" stroke-width="2"/><circle cx="545" cy="420" r="4.5" fill="#b91c1c"/>
+          <text x="712" y="390">Left Atrium</text>
+          <line x1="545" y1="595" x2="715" y2="585" stroke="#0f172a" stroke-width="2"/><circle cx="545" cy="595" r="4.5" fill="#991b1b"/>
+          <text x="722" y="590">Left Ventricle</text>
+          <line x1="451" y1="655" x2="451" y2="765" stroke="#0f172a" stroke-width="2"/><circle cx="451" cy="655" r="4.5" fill="#7f1d1d"/>
+          <text x="451" y="785" text-anchor="middle">Interventricular Septum</text>
+        </g>
+        <rect x="60" y="815" width="780" height="210" rx="14" fill="#f1f5f3" stroke="#cbd5e1"/>
+        <text x="85" y="850" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700" fill="#0b2419">CARDIAC CIRCULATION SUMMARY</text>
+        <text x="85" y="885" font-family="Inter, Arial, sans-serif" font-size="14" fill="#1e293b">• Right Heart (Blue): Receives deoxygenated venous blood via Vena Cava and pumps to the lungs.</text>
+        <text x="85" y="918" font-family="Inter, Arial, sans-serif" font-size="14" fill="#1e293b">• Left Heart (Red): Receives oxygenated pulmonary blood and pumps systemic blood via the Aorta.</text>
+        <text x="85" y="951" font-family="Inter, Arial, sans-serif" font-size="14" fill="#1e293b">• Septum &amp; Valves: Prevent mixing of oxygenated/deoxygenated blood and enforce one-way flow.</text>
+      </svg>`;
+    } else if (/\b(eye|cornea|retina|iris|lens)\b/.test(p)) {
+      svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" width="900" height="1100">
+        <rect width="900" height="1100" fill="#f8faf9"/>
+        <rect x="28" y="28" width="844" height="1044" rx="22" fill="#ffffff" stroke="#d0e0d8" stroke-width="2"/>
+        <text x="450" y="78" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700" fill="#0b2419">ANATOMY OF THE HUMAN EYE (SAGITTAL CROSS-SECTION)</text>
+        <text x="450" y="106" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" fill="#52665c">Verified Educational &amp; Clinical Reference Diagram</text>
+        <circle cx="470" cy="460" r="220" fill="#fef3c7" stroke="#475569" stroke-width="12"/>
+        <circle cx="470" cy="460" r="206" fill="none" stroke="#991b1b" stroke-width="8"/>
+        <path d="M 330 295 A 200 200 0 1 1 330 625" fill="#fde68a" stroke="#d97706" stroke-width="7"/>
+        <path d="M 278 355 C 205 405, 205 515, 278 565" fill="#e0f2fe" fill-opacity="0.75" stroke="#0284c7" stroke-width="8"/>
+        <rect x="282" y="358" width="16" height="68" rx="6" fill="#0369a1"/>
+        <rect x="282" y="494" width="16" height="68" rx="6" fill="#0369a1"/>
+        <ellipse cx="332" cy="460" rx="28" ry="64" fill="#bae6fd" stroke="#0284c7" stroke-width="4"/>
+        <path d="M 682 435 L 820 455 L 820 515 L 682 495 Z" fill="#fde047" stroke="#475569" stroke-width="6"/>
+        <g font-family="Inter, Arial, sans-serif" font-size="15" font-weight="600" fill="#0f172a">
+          <line x1="226" y1="415" x2="115" y2="335" stroke="#0f172a" stroke-width="2"/><circle cx="226" cy="415" r="4.5" fill="#0284c7"/><text x="110" y="330" text-anchor="end">Cornea</text>
+          <line x1="290" y1="385" x2="135" y2="255" stroke="#0f172a" stroke-width="2"/><circle cx="290" cy="385" r="4.5" fill="#0369a1"/><text x="130" y="250" text-anchor="end">Iris</text>
+          <line x1="286" y1="460" x2="115" y2="460" stroke="#0f172a" stroke-width="2"/><circle cx="286" cy="460" r="4.5" fill="#0f172a"/><text x="110" y="465" text-anchor="end">Pupil</text>
+          <line x1="332" y1="490" x2="135" y2="575" stroke="#0f172a" stroke-width="2"/><circle cx="332" cy="490" r="4.5" fill="#0284c7"/><text x="130" y="580" text-anchor="end">Crystalline Lens</text>
+          <line x1="652" y1="345" x2="745" y2="265" stroke="#0f172a" stroke-width="2"/><circle cx="652" cy="345" r="4.5" fill="#d97706"/><text x="752" y="260">Retina</text>
+          <line x1="686" y1="412" x2="765" y2="395" stroke="#0f172a" stroke-width="2"/><circle cx="686" cy="412" r="4.5" fill="#475569"/><text x="772" y="400">Sclera</text>
+          <line x1="755" y1="485" x2="775" y2="590" stroke="#0f172a" stroke-width="2"/><circle cx="755" cy="485" r="4.5" fill="#ca8a04"/><text x="775" y="612" text-anchor="middle">Optic Nerve</text>
+        </g>
+      </svg>`;
+    } else if (/\b(brain|cerebrum|cerebellum|brainstem|lobe)\b/.test(p)) {
+      svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" width="900" height="1100">
+        <rect width="900" height="1100" fill="#f8faf9"/>
+        <rect x="28" y="28" width="844" height="1044" rx="22" fill="#ffffff" stroke="#d0e0d8" stroke-width="2"/>
+        <text x="450" y="78" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700" fill="#0b2419">HUMAN BRAIN ANATOMY (SAGITTAL &amp; LOBAR SECTION)</text>
+        <text x="450" y="106" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" fill="#52665c">Verified Neuroanatomy Reference Diagram</text>
+        <path d="M 210 470 C 195 350, 275 250, 415 245 L 430 410 L 315 490 Z" fill="#fecdd3" stroke="#be123c" stroke-width="5"/>
+        <path d="M 415 245 C 535 242, 635 285, 675 370 L 545 445 L 430 410 Z" fill="#bae6fd" stroke="#0369a1" stroke-width="5"/>
+        <path d="M 675 370 C 720 435, 710 520, 645 555 L 545 485 L 545 445 Z" fill="#bbf7d0" stroke="#15803d" stroke-width="5"/>
+        <path d="M 315 490 C 310 555, 420 575, 545 525 L 545 445 L 430 410 Z" fill="#fde68a" stroke="#b45309" stroke-width="5"/>
+        <path d="M 335 425 C 350 355, 535 355, 560 435 C 535 445, 520 420, 445 415 C 385 415, 365 440, 335 425 Z" fill="#fef08a" stroke="#ca8a04" stroke-width="4"/>
+        <ellipse cx="455" cy="458" rx="46" ry="28" fill="#ddd6fe" stroke="#6d28d9" stroke-width="4"/>
+        <ellipse cx="605" cy="600" rx="76" ry="54" fill="#fed7aa" stroke="#c2410c" stroke-width="5"/>
+        <path d="M 445 486 C 425 535, 430 595, 455 630 L 485 735 L 530 735 L 510 530 Z" fill="#e2e8f0" stroke="#334155" stroke-width="5"/>
+        <g font-family="Inter, Arial, sans-serif" font-size="15" font-weight="600" fill="#0f172a">
+          <line x1="285" y1="335" x2="150" y2="255" stroke="#0f172a" stroke-width="2"/><circle cx="285" cy="335" r="4.5" fill="#be123c"/><text x="142" y="250" text-anchor="end">Frontal Lobe</text>
+          <line x1="545" y1="295" x2="665" y2="215" stroke="#0f172a" stroke-width="2"/><circle cx="545" cy="295" r="4.5" fill="#0369a1"/><text x="672" y="212">Parietal Lobe</text>
+          <line x1="675" y1="465" x2="755" y2="435" stroke="#0f172a" stroke-width="2"/><circle cx="675" cy="465" r="4.5" fill="#15803d"/><text x="762" y="440">Occipital Lobe</text>
+          <line x1="395" y1="530" x2="185" y2="555" stroke="#0f172a" stroke-width="2"/><circle cx="395" cy="530" r="4.5" fill="#b45309"/><text x="178" y="560" text-anchor="end">Temporal Lobe</text>
+          <line x1="445" y1="382" x2="295" y2="195" stroke="#0f172a" stroke-width="2"/><circle cx="445" cy="382" r="4.5" fill="#ca8a04"/><text x="288" y="190" text-anchor="end">Corpus Callosum</text>
+          <line x1="635" y1="610" x2="745" y2="625" stroke="#0f172a" stroke-width="2"/><circle cx="635" cy="610" r="4.5" fill="#c2410c"/><text x="752" y="630">Cerebellum</text>
+          <line x1="485" y1="645" x2="265" y2="695" stroke="#0f172a" stroke-width="2"/><circle cx="485" cy="645" r="4.5" fill="#334155"/><text x="258" y="700" text-anchor="end">Brainstem</text>
+        </g>
+      </svg>`;
+    } else {
+      const cleanTitle = String(promptText || 'Scientific System')
+        .replace(/^(?:please\s+)?(?:create|generate|make|draw|show)\s+(?:a\s+|an\s+|the\s+)?(?:detailed\s+|clean\s+)?(?:labeled\s+|labelled\s+)?(?:infographic\s+diagram|infographic|diagram|image|illustration)\s*(?:of\s+)?/i, '')
+        .split(/\b(?:showing|with|including)\b/i)[0]
+        .trim()
+        .toUpperCase()
+        .slice(0, 48) || 'SCIENTIFIC ARCHITECTURE DIAGRAM';
+      const escXml = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const mParts = String(promptText || '').match(/\b(?:showing|with|including)\s+(.+)$/i);
+      let partNames = mParts
+        ? mParts[1].replace(/\band\b/gi, ',').split(',').map((x) => x.trim()).filter(Boolean)
+        : [];
+      if (/black\s*hole/i.test(p) && partNames.length < 4) {
+        partNames = ['Gravitational Singularity', 'Event Horizon', 'Accretion Disk', 'Relativistic Jets', 'Photon Sphere', 'Innermost Stable Orbit'];
+      }
+      while (partNames.length < 6) {
+        partNames.push(['Primary Core Structure', 'Active Confinement Zone', 'Energy Transfer Pathway', 'Boundary Layer', 'Regulation Node', 'Output Telemetry'][partNames.length]);
+      }
+      svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" width="900" height="1100">
+        <rect width="900" height="1100" fill="#f8faf9"/>
+        <rect x="28" y="28" width="844" height="1044" rx="22" fill="#051811" stroke="#10b981" stroke-width="2.5"/>
+        <text x="450" y="82" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800" fill="#ffffff">${escXml(cleanTitle)}</text>
+        <text x="450" y="112" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" fill="#6ee7b7">Verified Structural &amp; Functional Reference Infographic</text>
+        <ellipse cx="450" cy="460" rx="220" ry="75" fill="none" stroke="#f59e0b" stroke-width="22" opacity="0.85" transform="rotate(-12 450 460)"/>
+        <circle cx="450" cy="460" r="110" fill="#06281e" stroke="#34d399" stroke-width="4" stroke-dasharray="8,5"/>
+        <circle cx="450" cy="460" r="65" fill="#020617" stroke="#facc15" stroke-width="4"/>
+        <circle cx="450" cy="460" r="10" fill="#ffffff"/>
+        <g font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700" fill="#ecfdf5">
+          <line x1="450" y1="460" x2="210" y2="260" stroke="#34d399" stroke-width="2.5"/><text x="200" y="255" text-anchor="end">1. ${escXml(partNames[0])}</text>
+          <line x1="385" y1="460" x2="195" y2="460" stroke="#34d399" stroke-width="2.5"/><text x="185" y="465" text-anchor="end">2. ${escXml(partNames[1])}</text>
+          <line x1="395" y1="515" x2="210" y2="660" stroke="#34d399" stroke-width="2.5"/><text x="200" y="665" text-anchor="end">3. ${escXml(partNames[2])}</text>
+          <line x1="495" y1="410" x2="690" y2="260" stroke="#34d399" stroke-width="2.5"/><text x="700" y="255">4. ${escXml(partNames[3])}</text>
+          <line x1="515" y1="460" x2="705" y2="460" stroke="#34d399" stroke-width="2.5"/><text x="715" y="465">5. ${escXml(partNames[4])}</text>
+          <line x1="505" y1="515" x2="690" y2="660" stroke="#34d399" stroke-width="2.5"/><text x="700" y="665">6. ${escXml(partNames[5])}</text>
+        </g>
+      </svg>`;
+    }
+    return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+  }
+
+  function healClientImageUri(rawUri, promptText) {
+    const s = String(rawUri || '').trim();
+    if (!s) return buildClientFallbackSvgUri(promptText);
+    if (s.startsWith('data:image/')) {
+      const commaIdx = s.indexOf(',');
+      if (commaIdx === -1) return buildClientFallbackSvgUri(promptText);
+      const b64 = s.slice(commaIdx + 1).trim();
+      if (b64.length < 100) return buildClientFallbackSvgUri(promptText);
+      if (b64.startsWith('PHN2Zy') || b64.startsWith('PD94bWw') || b64.startsWith('Cg88c3Zn') || b64.startsWith('77u/PD94bWw') || b64.startsWith('PCFET0NUWVBFIFNWRw')) {
+        return 'data:image/svg+xml;base64,' + b64;
+      }
+      if (b64.startsWith('iVBORw0KGgo')) return 'data:image/png;base64,' + b64;
+      if (b64.startsWith('UklGR')) return 'data:image/webp;base64,' + b64;
+      if (b64.startsWith('/9j/')) return 'data:image/jpeg;base64,' + b64;
+      if (b64.startsWith('PCFET0NU') || b64.startsWith('PGh0bWw') || b64.startsWith('eyJ') || b64.startsWith('W3')) {
+        return buildClientFallbackSvgUri(promptText);
+      }
+      if (!/\b(brain|cerebrum|cerebellum|lobe)\b/i.test(promptText || '')) {
+        try {
+          const headTxt = atob(b64.slice(0, 600));
+          if (headTxt.includes('HUMAN BRAIN ANATOMY')) {
+            return buildClientFallbackSvgUri(promptText);
+          }
+        } catch (_) {}
+      }
+      return s;
+    }
+    return s;
+  }
+
+  function sanitizeAllClientSavedImages() {
+    for (const th of (state.threads || [])) {
+      if (!Array.isArray(th.messages)) continue;
+      for (const m of th.messages) {
+        if (m && m.image) {
+          const p = m.query || m.image.prompt || th.title || '';
+          m.image.imageUrl = healClientImageUri(m.image.imageUrl || m.image.rawFluxUrl, p);
+          if (!m.image.aspectRatio) m.image.aspectRatio = '3:4';
+        }
+      }
+    }
+    for (const m of (state.messages || [])) {
+      if (m && m.image) {
+        const p = m.query || m.image.prompt || '';
+        m.image.imageUrl = healClientImageUri(m.image.imageUrl || m.image.rawFluxUrl, p);
+        if (!m.image.aspectRatio) m.image.aspectRatio = '3:4';
+      }
+    }
+    for (const it of (state.library || [])) {
+      if (it && it.type === 'image') {
+        it.dataUrl = healClientImageUri(it.dataUrl || it.rawFluxUrl, it.title || '');
+      }
+    }
+  }
+
+  window.__mcHealBrokenImg = function (imgEl) {
+    if (!imgEl || imgEl.dataset.mcHealed === '1') return;
+    imgEl.dataset.mcHealed = '1';
+    const altPrompt = imgEl.getAttribute('alt') || 'Diagram';
+    const healed = healClientImageUri(imgEl.getAttribute('src') || '', altPrompt);
+    if (healed && healed !== imgEl.getAttribute('src')) {
+      imgEl.src = healed;
+      return;
+    }
+    imgEl.src = buildClientFallbackSvgUri(altPrompt);
+  };
+
+  if (state.threads.length > 0) {
+    state.currentThreadId = state.threads[0].id;
+    state.messages = Array.isArray(state.threads[0].messages) ? [...state.threads[0].messages] : [];
+  } else {
+    state.currentThreadId = 'th_' + Date.now();
+    state.messages = [];
+  }
+  sanitizeAllClientSavedImages();
+
+  async function loadFromServerDisk() {
+    try {
+      const res = await fetch('/api/research?chatMode=1&storage=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatMode: true, storageAction: 'load' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.threads) && data.threads.length > 0) {
+          state.threads = data.threads;
+          const cur = state.threads.find((t) => t.id === state.currentThreadId) || state.threads[0];
+          if (cur) {
+            state.currentThreadId = cur.id;
+            state.messages = Array.isArray(cur.messages) ? [...cur.messages] : [];
+          }
+        }
+        if (Array.isArray(data.library) && data.library.length > 0) {
+          state.library = data.library;
+        }
+        sanitizeAllClientSavedImages();
+        syncLeftSidebar();
+        if (state.activeView === 'chat') renderThread();
+      }
+    } catch (_) {}
+  }
+
+  function syncToServerDisk() {
+    try {
+      fetch('/api/research?chatMode=1&storage=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatMode: true,
+          storageAction: 'save',
+          threads: state.threads.slice(0, 25),
+          library: state.library.slice(0, 40)
+        })
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  function saveThreads() {
+    try {
+      const firstUser = state.messages.find((m) => m.role === 'user');
+      if (firstUser) {
+        const title = String(firstUser.content || 'Chat').replace(/^["']+|["']+$/g, '').slice(0, 40);
+        const existingIdx = state.threads.findIndex((t) => t.id === state.currentThreadId);
+        const threadObj = {
+          id: state.currentThreadId,
+          title,
+          updatedAt: Date.now(),
+          messages: [...state.messages]
+        };
+        if (existingIdx !== -1) {
+          state.threads[existingIdx] = threadObj;
+        } else {
+          state.threads.unshift(threadObj);
+        }
+      }
+      syncToServerDisk();
+      try {
+        localStorage.setItem(STORAGE_THREADS_KEY, JSON.stringify(state.threads.slice(0, 20)));
+      } catch (quotaErr) {
+        // If base64 images exceed 5MB localStorage quota, store lightweight copy in localStorage while full copy stays in memory & server disk
+        const lightThreads = state.threads.slice(0, 15).map((t) => ({
+          ...t,
+          messages: (t.messages || []).map((m) =>
+            m.image && m.image.rawFluxUrl ? { ...m, image: { ...m.image, imageUrl: m.image.rawFluxUrl } } : m
+          )
+        }));
+        try { localStorage.setItem(STORAGE_THREADS_KEY, JSON.stringify(lightThreads)); } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  function addToLibrary(item) {
+    try {
+      const entry = {
+        id: 'lib_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        createdAt: new Date().toLocaleDateString(),
+        ...item
+      };
+      state.library.unshift(entry);
+      saveLibrary();
+    } catch (_) {}
+  }
+
+  function saveLibrary() {
+    syncToServerDisk();
+    try {
+      localStorage.setItem(STORAGE_LIBRARY_KEY, JSON.stringify(state.library.slice(0, 30)));
+    } catch (_) {
+      try {
+        const lightLib = state.library.slice(0, 20).map((it) => ({
+          ...it,
+          dataUrl: it.rawFluxUrl || it.dataUrl
+        }));
+        localStorage.setItem(STORAGE_LIBRARY_KEY, JSON.stringify(lightLib));
+      } catch (_) {}
+    }
+  }
+
+  function esc(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  const TYPO_MAP = {
+    reate: 'create', crete: 'create', creat: 'create', crate: 'create', crt: 'create', crte: 'create', mk: 'make', mke: 'make',
+    genrate: 'generate', generat: 'generate', gnrate: 'generate', gnrt: 'generate', gen: 'generate',
+    curnt: 'current', currnt: 'current', curent: 'current', crnt: 'current',
+    presidnt: 'president', minster: 'minister',
+    gogle: 'google', googl: 'google', microsft: 'microsoft', nvida: 'nvidia',
+    artifical: 'artificial', inteligence: 'intelligence',
+    quantm: 'quantum', qntumscap: 'quantumscape',
+    batry: 'battery', batery: 'battery', lithum: 'lithium', slid: 'solid',
+    crpto: 'crypto', bitcon: 'bitcoin', etherum: 'ethereum', prise: 'price',
+    infograph: 'infographic', infografic: 'infographic', infographs: 'infographics', infogrph: 'infographic', infogrf: 'infographic',
+    daigram: 'diagram', digram: 'diagram', diagrm: 'diagram', dgrm: 'diagram', dgm: 'diagram',
+    labl: 'labeled', labld: 'labeled', labling: 'labeled', labelling: 'labeled', labelled: 'labeled', lbld: 'labeled', lable: 'labeled', labled: 'labeled',
+    dtld: 'detailed', detaild: 'detailed', detald: 'detailed',
+    blck: 'black', hle: 'hole',
+    tokmak: 'tokamak', tokmk: 'tokamak', fusn: 'fusion', fsn: 'fusion', reactr: 'reactor', rctr: 'reactor',
+    hrt: 'heart', brn: 'brain', cll: 'cell',
+    atmy: 'anatomy', antmy: 'anatomy', anatmy: 'anatomy',
+    crss: 'cross', sctn: 'section',
+    technol: 'technology', tech: 'technology', tchnlgy: 'technology',
+    archtctr: 'architecture', archtecture: 'architecture',
+    imge: 'image', img: 'image', pictur: 'picture', pic: 'picture', pctr: 'picture', phto: 'photograph',
+    landscap: 'landscape', lndscp: 'landscape', widescrn: 'widescreen',
+    ebuk: 'ebook', eboook: 'ebook',
+    btao: 'explain', batao: 'explain', lain: 'line', lains: 'lines', pnt: 'point', pnts: 'points'
+  };
+
+  function normalizeClientTypos(text) {
+    return String(text || '')
+      .replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')
+      .replace(/\b([a-zA-Z]+)\b/g, (w) => {
+        const low = w.toLowerCase();
+        return TYPO_MAP[low] ? TYPO_MAP[low] : w;
+      })
+      .trim();
+  }
+
+  function isClientImagePrompt(rawText) {
+    const q = normalizeClientTypos(rawText).toLowerCase();
+    if (!q || /\b(ebook|e-book|illustrated\s+book)\b/i.test(q)) return false;
+    if (/\b(?:create|generate|make|draw|design|render|paint|show|give|banao|बनाओ|दिखाओ)\b[\s\S]{0,35}\b(?:image|photo|picture|portrait|illustration|infographic|poster|diagram|logo|wallpaper|art|visual|chart|फोटो|तस्वीर|इमेज)\b/i.test(q)) {
+      return true;
+    }
+    if (/^(?:an?\s+|the\s+)?(?:hd\s+|realistic\s+|clean\s+)?(?:image|photo|picture|portrait|illustration|infographic|diagram|poster|logo|wallpaper)\b/i.test(q)) {
+      return true;
+    }
+    if (/\b(?:infographic\s+diagram|labeled\s+diagram|infographic\s+of|diagram\s+of|photo\s+of|picture\s+of|image\s+of|portrait\s+of|illustration\s+of)\b/i.test(q)) {
+      return true;
+    }
+    return false;
+  }
+
+  function detectClientConstraint(rawQuery) {
+    const norm = normalizeClientTypos(rawQuery);
+    const wordToNum = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, ek: 1, do: 2, teen: 3, char: 4, paanch: 5, panch: 5 };
+    const q = norm.replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|ek|do|teen|char|paanch|panch)(?=[\s\-–—]*(?:line|lines|bullet|bullets|point|points|sentence|sentences))/gi, (m) => String(wordToNum[m.toLowerCase()] || m));
+
+    const lineM = q.match(/\b(\d{1,2})[\s\-–—]*(?:lines?|लाइन(?:ों)?|lain|पंक्ति)\b/i);
+    const bulletM = q.match(/\b(\d{1,2})[\s\-–—]*(?:bullets?|bullet[\s\-–—]*points?|points?|पॉइंट्स?|बिंदु)\b/i);
+    const sentM = q.match(/\b(\d{1,2})[\s\-–—]*(?:sentences?|वाक्य)\b/i);
+    const wantsBullets = /\b(?:in[\s\-]+bullets?|bullet[\s\-]+points?|only[\s\-]+bullets?|पॉइंट्स\s+में)\b/i.test(q) || Boolean(bulletM);
+    const wantsTableOnly = /\b(?:only[\s\-]+table|table[\s\-]+only|sirf[\s\-]+table|सिर्फ\s+टेबल)\b/i.test(q);
+    const wantsShort = /\b(?:in[\s\-]+short|short[\s\-]+ans(?:wer)?|briefly|tl;dr|tldr)\b/i.test(q);
+
+    if (lineM) return { isConstrained: true, unit: 'lines', exactCount: parseInt(lineM[1], 10), wantsBullets };
+    if (bulletM) return { isConstrained: true, unit: 'bullets', exactCount: parseInt(bulletM[1], 10), wantsBullets: true };
+    if (wantsBullets) return { isConstrained: true, unit: 'bullets', exactCount: 5, wantsBullets: true };
+    if (sentM) return { isConstrained: true, unit: 'sentences', exactCount: parseInt(sentM[1], 10) };
+    if (wantsTableOnly) return { isConstrained: true, unit: 'table', wantsTableOnly: true };
+    if (wantsShort) return { isConstrained: true, unit: 'short', exactCount: 3 };
+    return null;
+  }
+
+  function cleanAndEnforceChatText(rawText, intent) {
+    let text = String(rawText || '')
+      .replace(/\(\s*Source\s+\d+[^)]*\)/gi, '')
+      .replace(/\bSource\s+\d+\s*↗?/gi, '')
+      .replace(/\[\s*Source\s+\d+\s*\]/gi, '')
+      .replace(/\[\d{1,2}\]/g, '')
+      .trim();
+
+    if (!intent || !intent.isConstrained) return text;
+    if (intent.wantsTableOnly || intent.unit === 'table') {
+      const tm = text.match(/((?:^\|.*\|(?:\r?\n|$))+)/m);
+      return tm ? tm[1].trim() : text;
+    }
+    const rawLines = text.split(/\r?\n/);
+    const cleaned = [];
+    for (const line of rawLines) {
+      const t = line.trim();
+      if (!t || /^#{1,6}\s+/.test(t) || /^[-*_]{3,}$/.test(t) || /^\|.*\|$/.test(t)) continue;
+      if (/^(?:\*\*)?(?:Executive Summary|Factual Breakdown|Head-to-Head|Key Risks|Verified Source Bibliography|References|Sources)(?:\*\*)?:?\s*$/i.test(t)) {
+        if (/Bibliography|References|Sources/i.test(t)) break;
+        continue;
+      }
+      cleaned.push(t);
+    }
+    const target = intent.exactCount || 5;
+    let items = [];
+    if (cleaned.length < target) {
+      for (const cl of cleaned) {
+        const sents = cl.split(/(?<=[.!?।])\s+(?=[A-Z0-9"“‘•\-*\[])/);
+        for (const s of sents) {
+          if (s.trim().length > 8) items.push(s.trim());
+        }
+      }
+    } else {
+      items = cleaned;
+    }
+    const sliced = items.slice(0, target);
+    if (intent.unit === 'bullets' || intent.wantsBullets) {
+      return sliced.map((l) => `- ${l.replace(/^(?:[-•*]|\d+[.)])\s*/, '').trim()}`).join('\n');
+    }
+    if (intent.unit === 'lines') {
+      return sliced.map((l, idx) => `${idx + 1}. ${l.replace(/^(?:[-•*]|\d+[.)])\s*/, '').trim()}`).join('\n');
+    }
+    if (intent.unit === 'sentences') {
+      return sliced.map((l) => l.replace(/^(?:[-•*]|\d+[.)])\s*/, '').trim()).join(' ');
+    }
+    return sliced.join('\n');
+  }
+
+  // ============================================================================
+  // REAL AI IMAGE & INFOGRAPHIC WATERMARK CROPPER (No Fake Green Circle!)
+  // - If `rawUrl` is a `data:image/...` URI (returned by our Node.js backend),
+  //   crops the bottom 46px on `<canvas>` with zero CORS issues.
+  // - If `rawUrl` is an `https://` URL, loads it WITHOUT `crossOrigin` so Chrome
+  //   NEVER blocks it due to CORS, and CSS clips the bottom 44px watermark strip!
+  // ============================================================================
+  async function cropWatermarkIfBase64(rawUrl, isFalNative) {
+    if (!rawUrl || !rawUrl.startsWith('data:image/')) {
+      return rawUrl;
+    }
+    // Never re-encode or crop Fal.ai native images, SVGs, WebPs, or PNGs
+    if (isFalNative || rawUrl.startsWith('data:image/svg+xml') || rawUrl.startsWith('data:image/webp') || rawUrl.startsWith('data:image/png')) {
+      return rawUrl;
+    }
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || 768;
+          const h = img.naturalHeight || 1024;
+          const cropH = h > 260 ? h - 46 : h;
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = cropH;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, cropH, 0, 0, w, cropH);
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
+        } catch (_) {
+          resolve(rawUrl);
+        }
+      };
+      img.onerror = () => resolve(rawUrl);
+      img.src = rawUrl;
+    });
+  }
+
+  function injectAllStyles() {
+    if (document.getElementById('morphic-v14-complete-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'morphic-v14-complete-styles';
+    style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+      /* Complete Scrollable Left Sidebar & Gemini-Style Collapse Support */
+      aside, .sidebar, .demo-sidebar {
+        height: 100vh !important;
+        max-height: 100vh !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+        padding-bottom: 28px !important;
+        transition: margin-left 0.26s cubic-bezier(0.16, 1, 0.3, 1), transform 0.26s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.2) transparent;
+      }
+      aside::-webkit-scrollbar, .sidebar::-webkit-scrollbar {
+        width: 5px;
+      }
+      aside::-webkit-scrollbar-thumb, .sidebar::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.22);
+        border-radius: 999px;
+      }
+      body.mc-sidebar-collapsed aside,
+      body.mc-sidebar-collapsed .sidebar,
+      body.mc-sidebar-collapsed .demo-sidebar {
+        margin-left: -260px !important;
+      }
+
+      /* Gemini-Style Sidebar Close Button inside Sidebar Header */
+      .mc-sidebar-close-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.06);
+        color: #ffffff;
+        font-size: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin-left: auto;
+        flex-shrink: 0;
+        transition: background 0.15s ease;
+      }
+      .mc-sidebar-close-btn:hover {
+        background: rgba(255,255,255,0.18);
+      }
+
+      /* Floating Gemini-Style Sidebar Open Button when Sidebar is Collapsed */
+      .mc-sidebar-open-fab {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 9500;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: #0d261b;
+        color: #ffffff;
+        border: 1px solid rgba(255,255,255,0.18);
+        box-shadow: 0 6px 18px rgba(9, 28, 20, 0.22);
+        font-size: 17px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      body.mc-sidebar-collapsed .mc-sidebar-open-fab {
+        display: inline-flex;
+      }
+
+      .mc-shell {
+        max-width: 840px;
+        margin: 0 auto;
+        padding: 32px 24px 80px;
+        font-family: 'Inter', 'Noto Sans Devanagari', -apple-system, sans-serif;
+        color: #111814;
+      }
+      .mc-shell *::before, .mc-composer::before, .mc-composer::after {
+        content: none !important;
+      }
+      .mc-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+        gap: 12px;
+      }
+      .mc-title {
+        font-family: 'Newsreader', Georgia, serif;
+        font-size: 30px;
+        font-weight: 500;
+        color: #0b2419;
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+      .mc-top-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .mc-pill-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 13px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 1px solid #d4e0d9;
+        color: #0f291e;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .mc-pill-btn:hover, .mc-pill-btn.active {
+        background: #0d261b;
+        color: #ffffff;
+        border-color: #0b2419;
+      }
+
+      /* Composer */
+      .mc-composer {
+        background: #0d261b !important;
+        border-radius: 22px;
+        padding: 16px 18px 12px;
+        color: #f4f7f5 !important;
+        box-shadow: 0 12px 32px rgba(9, 28, 20, 0.14);
+        border: 1px solid rgba(255,255,255,0.08);
+      }
+      .mc-composer textarea#mc-chat-input,
+      .mc-composer textarea#mc-chat-input:focus,
+      .mc-composer textarea#mc-chat-input:active,
+      .mc-composer textarea#mc-chat-input:hover,
+      .mc-composer textarea#mc-img-studio-input,
+      .mc-composer textarea#mc-img-studio-input:focus {
+        width: 100% !important;
+        min-height: 54px !important;
+        max-height: 190px !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        resize: none !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        caret-color: #10b981 !important;
+        font-size: 15px !important;
+        line-height: 1.55 !important;
+        font-family: 'Inter', 'Noto Sans Devanagari', sans-serif !important;
+      }
+      .mc-composer textarea::placeholder {
+        color: rgba(235, 245, 239, 0.48) !important;
+        -webkit-text-fill-color: rgba(235, 245, 239, 0.48) !important;
+      }
+
+      .mc-mode-bar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 4px 0;
+      }
+      .mc-mode-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: rgba(16, 185, 129, 0.18);
+        border: 1px solid rgba(52, 211, 153, 0.4);
+        color: #a7f3d0;
+        font-size: 11.5px;
+        font-weight: 500;
+      }
+      .mc-mode-chip button {
+        background: none;
+        border: none;
+        color: #a7f3d0;
+        cursor: pointer;
+        font-size: 13px;
+        padding: 0 2px;
+      }
+
+      .mc-controls-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .mc-controls-left {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .mc-plus-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.06);
+        color: #ffffff;
+        font-size: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .mc-plus-btn:hover { background: rgba(255,255,255,0.16); }
+      .mc-select-pill {
+        background: rgba(255,255,255,0.07) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        color: #f0f7f3 !important;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        outline: none;
+      }
+      .mc-select-pill option { background: #0d261b; color: #ffffff; }
+      .mc-web-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.15);
+        background: transparent;
+        color: rgba(255,255,255,0.65);
+      }
+      .mc-web-toggle.active {
+        background: rgba(16, 185, 129, 0.16);
+        border-color: rgba(52, 211, 153, 0.45);
+        color: #6ee7b7;
+      }
+      .mc-quality-group {
+        display: none;
+        align-items: center;
+        background: rgba(0,0,0,0.22);
+        border: 1px solid rgba(52, 211, 153, 0.35);
+        border-radius: 999px;
+        padding: 2px;
+      }
+      .mc-quality-group.visible {
+        display: inline-flex;
+      }
+      .mc-quality-btn {
+        border: none;
+        background: transparent;
+        color: rgba(255,255,255,0.65);
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 999px;
+        cursor: pointer;
+      }
+      .mc-quality-btn.active {
+        background: #10b981;
+        color: #052e16;
+      }
+      .mc-send-btn {
+        width: 34px;
+        height: 34px;
+        background: #ffffff;
+        color: #0b2419;
+        border: none;
+        border-radius: 50%;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .mc-send-btn:hover { background: #6ee7b7; }
+
+      .mc-popover {
+        position: absolute;
+        top: 40px;
+        left: 0;
+        z-index: 100;
+        background: #112e21;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 14px;
+        padding: 6px;
+        width: 200px;
+        box-shadow: 0 16px 36px rgba(0,0,0,0.38);
+      }
+      .mc-pop-divider {
+        height: 1px;
+        background: rgba(255,255,255,0.1);
+        margin: 4px 6px;
+      }
+      .mc-pop-item {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        width: 100%;
+        padding: 7px 10px;
+        border: none;
+        background: transparent;
+        color: #f0f7f3;
+        font-size: 12.5px;
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: left;
+      }
+      .mc-pop-item:hover { background: rgba(255,255,255,0.1); }
+
+      /* Thread & Cards */
+      .mc-thread {
+        margin-top: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .mc-user-bubble {
+        align-self: flex-end;
+        background: #0d261b;
+        color: #ffffff;
+        padding: 11px 16px;
+        border-radius: 18px 18px 4px 18px;
+        max-width: 76%;
+        font-size: 14.5px;
+        line-height: 1.5;
+      }
+      .mc-ai-card {
+        background: #ffffff;
+        border-radius: 18px;
+        border: 1px solid #dce6e0;
+        padding: 22px 26px 18px;
+        box-shadow: 0 6px 20px rgba(11,36,25,0.03);
+      }
+      .mc-ai-body {
+        font-size: 15px;
+        line-height: 1.7;
+        color: #16241d;
+      }
+      .mc-ai-body h1, .mc-ai-body h2, .mc-ai-body h3 {
+        font-family: 'Newsreader', 'Noto Sans Devanagari', Georgia, serif;
+        color: #0b2419;
+        margin-top: 16px;
+        margin-bottom: 8px;
+      }
+      .mc-ai-body h1:first-child, .mc-ai-body h2:first-child, .mc-ai-body h3:first-child, .mc-ai-body p:first-child {
+        margin-top: 0;
+      }
+      .mc-ai-body table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 14px 0;
+        font-size: 13.5px;
+      }
+      .mc-ai-body th, .mc-ai-body td {
+        border: 1px solid #d8e3dc;
+        padding: 8px 11px;
+        text-align: left;
+      }
+      .mc-ai-body th { background: #f2f7f4; font-weight: 600; }
+      .mc-numbered-line {
+        padding: 6px 0;
+        border-bottom: 1px solid #f1f5f3;
+      }
+      .mc-numbered-line:last-child { border-bottom: none; }
+
+      .mc-image-showcase {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid #dce6e0;
+        background: #061910;
+        width: 100%;
+        max-width: 460px;
+        margin: 0 auto;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+      }
+      .mc-image-showcase.mc-aspect-landscape {
+        max-width: 100%;
+      }
+      .mc-image-showcase.mc-aspect-square {
+        max-width: 480px;
+      }
+      .mc-image-crop-frame {
+        width: 100%;
+        min-height: 400px;
+        max-height: 580px;
+        aspect-ratio: 3 / 4;
+        overflow: hidden;
+        position: relative;
+        background: #071c12;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .mc-image-showcase.mc-aspect-landscape .mc-image-crop-frame {
+        aspect-ratio: 16 / 9;
+        min-height: 340px;
+        max-height: 500px;
+      }
+      .mc-image-showcase.mc-aspect-square .mc-image-crop-frame {
+        aspect-ratio: 1 / 1;
+        min-height: 380px;
+        max-height: 480px;
+      }
+      .mc-image-crop-frame img {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 340px !important;
+        max-height: 580px !important;
+        object-fit: contain !important;
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        background: #071c12 !important;
+      }
+      .mc-image-bar {
+        padding: 10px 14px;
+        background: #0d261b;
+        color: #d1fae5;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 12px;
+        position: relative;
+        z-index: 2;
+      }
+
+      .mc-ebook-wrap {
+        border: 1px solid #c8dfd2;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #fbfdfc;
+      }
+      .mc-ebook-cover {
+        background: linear-gradient(135deg, #092016 0%, #123828 100%);
+        color: #ffffff;
+        padding: 22px;
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 20px;
+        align-items: center;
+      }
+      .mc-ebook-cover img {
+        width: 160px;
+        height: 215px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.2);
+      }
+      .mc-ebook-chapter {
+        padding: 20px 22px;
+        border-top: 1px solid #e2ece6;
+      }
+      .mc-ebook-chapter img {
+        width: 100%;
+        max-height: 320px;
+        object-fit: cover;
+        border-radius: 10px;
+        margin: 10px 0;
+      }
+
+      .mc-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+        padding-top: 10px;
+        border-top: 1px solid #edf2ef;
+      }
+      .mc-foot-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        border: 1px solid #d4e0d9;
+        background: #ffffff;
+        color: #26382f;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .mc-foot-btn:hover {
+        background: #0d261b;
+        color: #ffffff;
+        border-color: #0d261b;
+      }
+
+      /* Self-contained Thinking Animation */
+      .mc-thinking-card {
+        background: linear-gradient(145deg, #0b2218 0%, #103123 60%, #0d281c 100%);
+        border-radius: 18px;
+        padding: 20px 22px;
+        color: #f0fdf4;
+        border: 1px solid rgba(16, 185, 129, 0.32);
+        position: relative;
+        overflow: hidden;
+      }
+      .mc-thinking-aurora {
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, transparent, #10b981, #34d399, #06b6d4, #10b981, transparent);
+        background-size: 200% 100%;
+        animation: mcAurora 2s linear infinite;
+      }
+      @keyframes mcAurora {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      .mc-thinking-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .mc-orbital {
+        width: 34px; height: 34px;
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .mc-ring1 {
+        position: absolute; inset: 0; border-radius: 50%;
+        border: 2px solid transparent; border-top-color: #10b981; border-right-color: rgba(16,185,129,0.35);
+        animation: mcSpin 1.1s linear infinite;
+      }
+      .mc-ring2 {
+        position: absolute; inset: 5px; border-radius: 50%;
+        border: 2px solid transparent; border-bottom-color: #34d399;
+        animation: mcSpinRev 1.5s linear infinite;
+      }
+      .mc-core {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: #10b981; box-shadow: 0 0 12px #10b981;
+      }
+      @keyframes mcSpin { to { transform: rotate(360deg); } }
+      @keyframes mcSpinRev { to { transform: rotate(-360deg); } }
+      .mc-shimmer-bar {
+        height: 8px;
+        border-radius: 999px;
+        margin-top: 10px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(52, 211, 153, 0.18) 50%, rgba(255,255,255,0.04) 75%);
+        background-size: 200% 100%;
+        animation: mcAurora 1.7s linear infinite;
+      }
+
+      /* Library & Image Studio Grid */
+      .mc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 16px;
+        margin-top: 18px;
+      }
+      .mc-lib-card {
+        background: #ffffff;
+        border: 1px solid #dce6e0;
+        border-radius: 16px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 4px 14px rgba(11,36,25,0.03);
+      }
+      .mc-lib-thumb-wrap {
+        width: 100%;
+        height: 210px;
+        overflow: hidden;
+        background: #f8faf9;
+        border-bottom: 1px solid #e2ece7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        cursor: zoom-in;
+      }
+      .mc-lib-thumb-wrap:hover::after {
+        content: '⤢ Full Preview';
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(11, 36, 25, 0.86);
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 5px 10px;
+        border-radius: 999px;
+        pointer-events: none;
+        backdrop-filter: blur(6px);
+      }
+      .mc-lib-thumb {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        padding: 4px;
+      }
+      .mc-image-crop-frame {
+        cursor: zoom-in;
+      }
+      .mc-image-showcase.mc-edu-diagram .mc-image-crop-frame {
+        background: #ffffff !important;
+      }
+      .mc-image-showcase.mc-edu-diagram .mc-image-crop-frame img {
+        background: #ffffff !important;
+        padding: 8px !important;
+      }
+      /* Gemini / ChatGPT-Style Full-Screen Lightbox Preview Modal */
+      .mc-lightbox-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        background: rgba(6, 20, 14, 0.92);
+        backdrop-filter: blur(14px);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 18px 28px;
+        animation: mcFadeIn 0.18s ease-out;
+      }
+      @keyframes mcFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .mc-lightbox-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        color: #ffffff;
+      }
+      .mc-lightbox-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ecfdf5;
+        max-width: 55vw;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mc-lightbox-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .mc-lb-btn {
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        padding: 7px 13px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .mc-lb-btn:hover {
+        background: rgba(16, 185, 129, 0.35);
+        border-color: #10b981;
+      }
+      .mc-lb-btn.primary {
+        background: #10b981;
+        border-color: #059669;
+        color: #052e16;
+      }
+      .mc-lb-btn.primary:hover {
+        background: #34d399;
+      }
+      .mc-lightbox-stage {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: auto;
+        margin: 14px 0;
+        border-radius: 18px;
+        position: relative;
+      }
+      .mc-lightbox-img-wrap {
+        border-radius: 14px;
+        padding: 12px;
+        transition: transform 0.2s ease, background 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      }
+      .mc-lightbox-img-wrap.light-bg {
+        background: #ffffff;
+      }
+      .mc-lightbox-img-wrap.dark-bg {
+        background: #071c12;
+      }
+      .mc-lightbox-img-wrap img {
+        max-width: 86vw;
+        max-height: 76vh;
+        object-fit: contain;
+        display: block;
+        border-radius: 8px;
+        cursor: zoom-in;
+      }
+      .mc-lightbox-bottom {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #a7f3d0;
+        font-size: 12px;
+      }
+      .mc-lib-body {
+        padding: 12px 14px;
+      }
+      .mc-lib-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #0b2419;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mc-lib-meta {
+        font-size: 11px;
+        color: #52665c;
+      }
+      .mc-lib-actions {
+        padding: 8px 14px 12px;
+        display: flex;
+        gap: 6px;
+      }
+
+      /* Left Sidebar Chat History & Nav Items */
+      .mc-side-nav-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 9px 12px;
+        border-radius: 10px;
+        border: none;
+        background: transparent;
+        color: rgba(255,255,255,0.78);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        text-align: left;
+        margin-bottom: 3px;
+        font-family: 'Inter', sans-serif;
+      }
+      .mc-side-nav-btn:hover {
+        background: rgba(255,255,255,0.08);
+        color: #ffffff;
+      }
+      .mc-side-nav-btn.active {
+        background: #ffffff;
+        color: #091d14;
+        font-weight: 700;
+      }
+      .mc-side-history-box {
+        margin: 10px 4px 14px;
+        padding: 10px 6px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        font-family: 'Inter', sans-serif;
+      }
+      .mc-side-history-title {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(255,255,255,0.48);
+        padding: 0 6px 7px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .mc-side-hist-list {
+        max-height: 180px;
+        overflow-y: auto;
+      }
+      .mc-side-hist-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 8px;
+        border-radius: 8px;
+        color: rgba(255,255,255,0.78);
+        font-size: 12.5px;
+        cursor: pointer;
+        margin-bottom: 3px;
+      }
+      .mc-side-hist-row:hover, .mc-side-hist-row.active {
+        background: rgba(16, 185, 129, 0.22);
+        color: #ffffff;
+        font-weight: 600;
+      }
+      .mc-side-hist-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+      }
+      .mc-side-hist-del {
+        background: none;
+        border: none;
+        color: rgba(255,255,255,0.4);
+        cursor: pointer;
+        font-size: 13px;
+        padding: 0 4px;
+      }
+      .mc-side-hist-del:hover { color: #f87171; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function formatCleanMarkdown(md) {
+    if (!md) return '';
+    let html = esc(md);
+
+    html = html.replace(/((?:^\|.*\|\r?\n)+)/gm, (tableBlock) => {
+      const rows = tableBlock.trim().split(/\r?\n/).filter(Boolean);
+      if (rows.length < 2) return tableBlock;
+      let out = '<table>';
+      rows.forEach((row, rIdx) => {
+        if (/^\|[\s\-:|]+\|$/.test(row.trim())) return;
+        const cells = row.replace(/^\||\|$/g, '').split('|');
+        const tag = rIdx === 0 ? 'th' : 'td';
+        out += '<tr>' + cells.map((c) => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+      });
+      out += '</table>';
+      return out;
+    });
+
+    html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/^(?:[-•*])\s+(.+)$/gm, '<li>$1</li>');
+    html = html.replace(/((?:<li>.*<\/li>\r?\n?)+)/g, '<ul>$1</ul>');
+    html = html.replace(/^(\d{1,2})\.\s+(.+)$/gm, '<div class="mc-numbered-line"><strong>$1.</strong> $2</div>');
+
+    html = html
+      .split(/\n{2,}/)
+      .map((block) => {
+        const b = block.trim();
+        if (!b) return '';
+        if (/^<(h1|h2|h3|ul|ol|table|div)/i.test(b)) return b;
+        return `<p>${b.replace(/\n/g, '<br>')}</p>`;
+      })
+      .join('\n');
+
+    return html;
+  }
+
+  function exportMessageToPDF(msgObj) {
+    if (!msgObj) return;
+    const win = window.open('', '_blank', 'width=940,height=820');
+    if (!win) {
+      alert('Please allow popups to download the PDF.');
+      return;
+    }
+
+    if (msgObj.responseType === 'ebook' && msgObj.ebook) {
+      const eb = msgObj.ebook;
+      const chaptersHtml = (eb.chapters || [])
+        .map(
+          (ch) => `
+          <div class="chapter-page">
+            <div class="chapter-header">
+              <span class="chapter-badge">Chapter ${ch.number}</span>
+              <span class="book-header-title">${esc(eb.title)}</span>
+            </div>
+            <h2 class="chapter-title">${esc(ch.title)}</h2>
+            ${ch.imageUrl ? `<div class="chapter-img-wrap"><img src="${ch.imageUrl}" alt="${esc(ch.title)}"></div>` : ''}
+            <div class="chapter-body">${formatCleanMarkdown(ch.contentMarkdown || '')}</div>
+          </div>`
+        )
+        .join('');
+
+      win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${esc(eb.title)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,600;6..72,700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 16mm 14mm 16mm 14mm;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', 'Noto Sans Devanagari', -apple-system, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      line-height: 1.72;
+      font-size: 10.5pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Luxury Editorial Cover Page */
+    .cover-container {
+      page-break-after: always;
+      background: radial-gradient(ellipse at 50% 30%, #0d3625 0%, #061910 100%) !important;
+      color: #ffffff;
+      border-radius: 20px;
+      padding: 44px 32px 36px;
+      text-align: center;
+      min-height: 252mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid #10b981;
+    }
+    .cover-brand {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #34d399;
+      margin-bottom: 12px;
+    }
+    .cover-title {
+      font-family: 'Newsreader', serif;
+      font-size: 30pt;
+      line-height: 1.18;
+      color: #ffffff !important;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .cover-sub {
+      font-size: 12.5pt;
+      color: #a7f3d0 !important;
+      max-width: 88%;
+      margin: 0 auto 20px;
+      font-weight: 500;
+    }
+    .cover-art-frame {
+      width: 250px;
+      height: 330px;
+      margin: 0 auto;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 3px solid rgba(52, 211, 153, 0.6);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    }
+    .cover-art-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .cover-foot {
+      font-size: 9.5pt;
+      color: #6ee7b7;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      padding-top: 14px;
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Chapter Pages */
+    .chapter-page {
+      page-break-before: always;
+      padding-top: 6mm;
+    }
+    .chapter-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 14px;
+    }
+    .chapter-badge {
+      font-size: 9pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #059669;
+    }
+    .book-header-title {
+      font-size: 8.5pt;
+      color: #64748b;
+      max-width: 65%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .chapter-title {
+      font-family: 'Newsreader', serif;
+      font-size: 20pt;
+      color: #0b2419;
+      line-height: 1.25;
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+    .chapter-img-wrap {
+      width: 100%;
+      max-height: 230px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      border: 1px solid #cbd5e1;
+    }
+    .chapter-img-wrap img {
+      width: 100%;
+      max-height: 230px;
+      object-fit: cover;
+      display: block;
+    }
+    .chapter-body {
+      font-size: 10.5pt;
+      color: #1e293b;
+      line-height: 1.76;
+    }
+    .chapter-body p { margin-bottom: 14px; text-align: justify; }
+    .chapter-body strong { color: #0b2419; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="cover-container">
+    <div>
+      <div class="cover-brand">PIXELMORPHIC RESEARCH &amp; PUBLISHING STUDIO</div>
+      <h1 class="cover-title">${esc(eb.title)}</h1>
+      <div class="cover-sub">${esc(eb.subtitle || '')}</div>
+    </div>
+    ${eb.coverImageUrl ? `<div class="cover-art-frame"><img src="${eb.coverImageUrl}" alt="Cover"></div>` : ''}
+    <div class="cover-foot">
+      <span>Illustrated Research Edition · 2026</span>
+      <span>Published via Pixelmorphic AI</span>
+    </div>
+  </div>
+  ${chaptersHtml}
+  <script>window.onload = function() { setTimeout(function() { window.print(); }, 500); };<\/script>
+</body>
+</html>`);
+      win.document.close();
+      return;
+    }
+
+    const bodyHtml = formatCleanMarkdown(msgObj.answer || '');
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${esc(msgObj.query || 'Document')}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Newsreader:opsz,wght@6..72,600&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4; margin: 18mm 16mm; }
+    body { font-family: 'Inter', 'Noto Sans Devanagari', sans-serif; color: #111814; line-height: 1.68; font-size: 13.5px; }
+    .hdr { border-bottom: 2px solid #0b2419; padding-bottom: 10px; margin-bottom: 18px; display: flex; justify-content: space-between; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px; }
+    th, td { border: 1px solid #cbd5e1; padding: 7px 9px; text-align: left; }
+    th { background: #f1f5f9; }
+  </style>
+</head>
+<body>
+  <div class="hdr">
+    <div style="font-family:'Newsreader',serif;font-size:20px;font-weight:600;color:#0b2419;">PIXELMORPHIC AI</div>
+    <div style="font-size:11px;color:#52665c;">${new Date().toLocaleDateString()}</div>
+  </div>
+  <div>${bodyHtml}</div>
+  <script>window.onload = function() { setTimeout(function() { window.print(); }, 450); };<\/script>
+</body>
+</html>`);
+    win.document.close();
+  }
+
+  function toggleSidebarCollapse(forceState) {
+    state.sidebarCollapsed = forceState !== undefined ? Boolean(forceState) : !state.sidebarCollapsed;
+    document.body.classList.toggle('mc-sidebar-collapsed', state.sidebarCollapsed);
+  }
+
+  function syncLeftSidebar() {
+    const sidebar = document.querySelector('aside, .sidebar, nav');
+    if (!sidebar) return;
+
+    // Ensure floating Open Sidebar button exists on body when sidebar is collapsed
+    if (!document.getElementById('mc-sidebar-open-fab')) {
+      const fab = document.createElement('button');
+      fab.id = 'mc-sidebar-open-fab';
+      fab.className = 'mc-sidebar-open-fab';
+      fab.title = 'Open sidebar';
+      fab.innerHTML = '☰';
+      fab.onclick = () => toggleSidebarCollapse(false);
+      document.body.appendChild(fab);
+    }
+
+    // Add Gemini-style Close button (`✕` / `«`) inside the top brand row of the sidebar
+    const brandRow = sidebar.querySelector('.demo-logo, .brand, [class*="logo"], [class*="brand"]') || sidebar.firstElementChild;
+    if (brandRow && !document.getElementById('mc-sidebar-close-btn')) {
+      brandRow.style.display = 'flex';
+      brandRow.style.alignItems = 'center';
+      brandRow.style.width = '100%';
+      const closeBtn = document.createElement('button');
+      closeBtn.id = 'mc-sidebar-close-btn';
+      closeBtn.className = 'mc-sidebar-close-btn';
+      closeBtn.title = 'Close sidebar';
+      closeBtn.innerHTML = '✕';
+      closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleSidebarCollapse(true);
+      };
+      brandRow.appendChild(closeBtn);
+    }
+
+    // Find "Research Lab" button inside YOUR WORKSPACE so we place Image Studio, Library & Recent Chats right below it!
+    const navAnchor = Array.from(sidebar.querySelectorAll('a, button, .demo-nav-item, [class*="nav"]')).find((el) =>
+      /Research\s*Lab/i.test(el.textContent || '')
+    );
+
+    if (navAnchor && !document.getElementById('mc-nav-image-studio')) {
+      const wrap = document.createElement('div');
+      wrap.id = 'mc-custom-nav-links';
+      wrap.style.marginTop = '4px';
+      wrap.innerHTML = `
+        <button class="mc-side-nav-btn" id="mc-nav-image-studio">
+          <span>🎨</span> <span>Image Studio</span>
+        </button>
+        <button class="mc-side-nav-btn" id="mc-nav-library">
+          <span>🗂️</span> <span>Library</span> <span id="mc-lib-count-badge" style="margin-left:auto;font-size:11px;opacity:0.65;">(${state.library.length})</span>
+        </button>
+      `;
+      navAnchor.insertAdjacentElement('afterend', wrap);
+
+      document.getElementById('mc-nav-image-studio')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        state.activeView = 'images';
+        window.location.hash = '#images';
+        checkAndMountMainView(true);
+      });
+
+      document.getElementById('mc-nav-library')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        state.activeView = 'library';
+        window.location.hash = '#library';
+        checkAndMountMainView(true);
+      });
+    }
+
+    const badge = document.getElementById('mc-lib-count-badge');
+    if (badge) badge.textContent = `(${state.library.length})`;
+
+    const imgBtn = document.getElementById('mc-nav-image-studio');
+    const libBtn = document.getElementById('mc-nav-library');
+    const hash = (window.location.hash || '').toLowerCase();
+    if (imgBtn) imgBtn.classList.toggle('active', hash.includes('images'));
+    if (libBtn) libBtn.classList.toggle('active', hash.includes('library'));
+
+    Array.from(sidebar.querySelectorAll('a, button, .demo-nav-item')).forEach((el) => {
+      const txt = (el.textContent || '').trim();
+      if (/General\s*Chat/i.test(txt) && !el.dataset.mcChatBound) {
+        el.dataset.mcChatBound = '1';
+        el.addEventListener('click', () => {
+          state.activeView = 'chat';
+          window.location.hash = '#chat';
+          setTimeout(() => checkAndMountMainView(true), 25);
+        });
+      } else if (/Research\s*Lab/i.test(txt) && !el.dataset.mcResBound) {
+        el.dataset.mcResBound = '1';
+        el.addEventListener('click', () => {
+          window.location.hash = '#research';
+          const shell = document.getElementById('mc-shell-root');
+          if (shell) shell.remove();
+        });
+      } else if (/Overview|Code\s*Studio|Study\s*Workspace|Projects|Plugins|Account/i.test(txt) && !el.dataset.mcHostBound) {
+        el.dataset.mcHostBound = '1';
+        el.addEventListener('click', () => {
+          if (/chat|images|library|research|business/i.test(window.location.hash || '')) {
+            history.replaceState(null, '', window.location.pathname);
+          }
+          const shell = document.getElementById('mc-shell-root');
+          if (shell) shell.remove();
+        });
+      } else if (/Create\s*a\s*job/i.test(txt) && !el.dataset.mcNewBound) {
+        el.dataset.mcNewBound = '1';
+        el.addEventListener('click', () => {
+          state.activeView = 'chat';
+          window.location.hash = '#chat';
+          setTimeout(() => {
+            checkAndMountMainView(true);
+            startNewChatThread();
+          }, 25);
+        });
+      }
+    });
+
+    // Place RECENT CHATS right below our custom nav links (above PROJECT & SETTINGS) so it is always visible and never cut off at the bottom!
+    let histBox = document.getElementById('mc-sidebar-chat-history');
+    if (!histBox) {
+      histBox = document.createElement('div');
+      histBox.id = 'mc-sidebar-chat-history';
+      histBox.className = 'mc-side-history-box';
+      const customLinks = document.getElementById('mc-custom-nav-links');
+      if (customLinks) {
+        customLinks.insertAdjacentElement('afterend', histBox);
+      } else {
+        sidebar.appendChild(histBox);
+      }
+    }
+
+    const isResearchRoute = hash.includes('business') || hash.includes('research');
+    histBox.style.display = isResearchRoute ? 'none' : 'block';
+
+    const rowsHtml = state.threads
+      .slice(0, 15)
+      .map(
+        (t, idx) => `
+        <div class="mc-side-hist-row ${t.id === state.currentThreadId ? 'active' : ''}" data-th-id="${esc(t.id)}">
+          <span class="mc-side-hist-label" title="${esc(t.title)}">💬 ${esc(t.title)}</span>
+          <button class="mc-side-hist-del" data-del-th="${idx}" title="Delete chat">×</button>
+        </div>`
+      )
+      .join('');
+
+    histBox.innerHTML = `
+      <div class="mc-side-history-title">
+        <span>Recent Chats</span>
+        <span>(${state.threads.length})</span>
+      </div>
+      <div class="mc-side-hist-list">${rowsHtml || '<div style="font-size:11px;color:rgba(255,255,255,0.4);padding:2px 6px;">No recent chats</div>'}</div>
+    `;
+
+    histBox.querySelectorAll('.mc-side-hist-row').forEach((row) => {
+      row.onclick = (e) => {
+        if (e.target.closest('.mc-side-hist-del')) return;
+        const thId = row.getAttribute('data-th-id');
+        const found = state.threads.find((t) => t.id === thId);
+        if (found) {
+          state.currentThreadId = found.id;
+          state.messages = Array.isArray(found.messages) ? [...found.messages] : [];
+          state.activeView = 'chat';
+          if (!window.location.hash.includes('chat')) {
+            window.location.hash = '#chat';
+          }
+          checkAndMountMainView(true);
+          renderThread();
+          syncLeftSidebar();
+        }
+      };
+    });
+
+    histBox.querySelectorAll('.mc-side-hist-del').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-del-th'), 10);
+        const removed = state.threads.splice(idx, 1)[0];
+        saveThreads();
+        if (removed && removed.id === state.currentThreadId) {
+          startNewChatThread();
+        } else {
+          syncLeftSidebar();
+        }
+      };
+    });
+  }
+
+  function startNewChatThread() {
+    state.currentThreadId = 'th_' + Date.now();
+    state.messages = [];
+    state.attachments = [];
+    state.actionMode = 'auto';
+    state.activeView = 'chat';
+    window.location.hash = '#chat';
+    checkAndMountMainView(true);
+    renderThread();
+    syncLeftSidebar();
+  }
+
+  function updateQualityToggleVisibility() {
+    const qGroup = document.getElementById('mc-quality-group');
+    const chatInput = document.getElementById('mc-chat-input');
+    if (!qGroup) return;
+    const text = chatInput ? chatInput.value : '';
+    const shouldShow = state.actionMode === 'image' || state.actionMode === 'ebook' || isClientImagePrompt(text);
+    qGroup.classList.toggle('visible', shouldShow);
+  }
+
+  function renderModeAndAttachments() {
+    const modeSlot = document.getElementById('mc-mode-slot');
+    if (!modeSlot) return;
+
+    const chips = [];
+    if (state.actionMode === 'image') {
+      chips.push(`<span class="mc-mode-chip">🎨 Create image <button data-clear-mode="1">×</button></span>`);
+    } else if (state.actionMode === 'ebook') {
+      chips.push(`<span class="mc-mode-chip">📚 Create eBook <button data-clear-mode="1">×</button></span>`);
+    } else if (state.actionMode === 'pdf') {
+      chips.push(`<span class="mc-mode-chip">📑 Create PDF <button data-clear-mode="1">×</button></span>`);
+    }
+
+    state.attachments.forEach((att, idx) => {
+      chips.push(`<span class="mc-mode-chip">📎 ${esc(att.name)} <button data-rm-att="${idx}">×</button></span>`);
+    });
+
+    modeSlot.innerHTML = chips.join('');
+    modeSlot.querySelectorAll('[data-clear-mode]').forEach((b) => {
+      b.onclick = () => {
+        state.actionMode = 'auto';
+        const chatInput = document.getElementById('mc-chat-input');
+        if (chatInput) chatInput.placeholder = 'Ask anything...';
+        renderModeAndAttachments();
+        updateQualityToggleVisibility();
+      };
+    });
+    modeSlot.querySelectorAll('[data-rm-att]').forEach((b) => {
+      b.onclick = () => {
+        const i = parseInt(b.getAttribute('data-rm-att'), 10);
+        state.attachments.splice(i, 1);
+        renderModeAndAttachments();
+      };
+    });
+    updateQualityToggleVisibility();
+  }
+
+  function showDownloadToast(msg) {
+    let t = document.getElementById('mc-dl-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'mc-dl-toast';
+      t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:1000005;background:#064e3b;color:#ecfdf5;border:1px solid #10b981;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:0 10px 28px rgba(0,0,0,0.28);transition:opacity 0.25s ease;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg || '✓ Downloaded to your device';
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2600);
+  }
+
+  async function triggerDataUrlDownload(dataUrl, filename) {
+    if (!dataUrl) return;
+    try {
+      let ext = 'png';
+      if (dataUrl.startsWith('data:image/svg+xml')) ext = 'svg';
+      else if (dataUrl.startsWith('data:image/jpeg')) ext = 'jpg';
+      else if (dataUrl.startsWith('data:image/webp')) ext = 'webp';
+      else if (dataUrl.startsWith('data:image/png')) ext = 'png';
+
+      const cleanBase = String(filename || 'pixelmorphic-image')
+        .replace(/\.(jpg|jpeg|png|svg|webp)$/i, '')
+        .replace(/[^a-zA-Z0-9_\-]/g, '-')
+        .replace(/-+/g, '-')
+        .slice(0, 60) || 'pixelmorphic-image';
+      const finalName = `${cleanBase}.${ext}`;
+
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = finalName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 600);
+      showDownloadToast(`✓ Saved ${finalName}`);
+    } catch (_) {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename || 'pixelmorphic-image.png';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 200);
+      showDownloadToast('✓ Download started');
+    }
+  }
+
+  function openImageLightbox(opts) {
+    if (!opts || !opts.url) return;
+    const existing = document.getElementById('mc-image-lightbox-modal');
+    if (existing) existing.remove();
+
+    const isEdu = Boolean(
+      opts.isEducational ||
+      opts.url.startsWith('data:image/svg+xml') ||
+      opts.url.startsWith('data:image/png') ||
+      /\b(diagram|labeled|labelled|anatomy|cell|brain|heart|eye|structure|organelle|infographic)\b/i.test(opts.title || '')
+    );
+
+    let zoomScale = 1;
+    let useLightBg = isEdu;
+
+    const modal = document.createElement('div');
+    modal.id = 'mc-image-lightbox-modal';
+    modal.className = 'mc-lightbox-overlay';
+    modal.innerHTML = `
+      <div class="mc-lightbox-top">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="background:rgba(16,185,129,0.22);border:1px solid #10b981;color:#6ee7b7;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;">
+            ${isEdu ? '✓ Verified Educational Diagram' : '✨ Morphic Studio HD'}
+          </span>
+          <div class="mc-lightbox-title" title="${esc(opts.title || 'Generated Visual')}">${esc(opts.title || 'Generated Visual')}</div>
+        </div>
+        <div class="mc-lightbox-controls">
+          <button type="button" class="mc-lb-btn" id="mc-lb-zoom-out" title="Zoom Out">🔍−</button>
+          <button type="button" class="mc-lb-btn" id="mc-lb-zoom-reset" title="Reset Zoom">100%</button>
+          <button type="button" class="mc-lb-btn" id="mc-lb-zoom-in" title="Zoom In">🔍+</button>
+          <button type="button" class="mc-lb-btn" id="mc-lb-bg-toggle" title="Switch Light/Dark Canvas">
+            ${useLightBg ? '🌙 Dark Canvas' : '☀️ Light Canvas'}
+          </button>
+          <button type="button" class="mc-lb-btn primary" id="mc-lb-download">⬇ Download HD</button>
+          <button type="button" class="mc-lb-btn" id="mc-lb-close" style="padding:7px 12px;">✕ Close</button>
+        </div>
+      </div>
+      <div class="mc-lightbox-stage" id="mc-lb-stage">
+        <div class="mc-lightbox-img-wrap ${useLightBg ? 'light-bg' : 'dark-bg'}" id="mc-lb-wrap">
+          <img src="${esc(opts.url)}" alt="${esc(opts.title || 'Preview')}" id="mc-lb-img" onerror="window.__mcHealBrokenImg && window.__mcHealBrokenImg(this)" referrerpolicy="no-referrer" />
+        </div>
+      </div>
+      <div class="mc-lightbox-bottom">
+        <span>Aspect Ratio: ${esc(opts.aspectRatio || '3:4')} · Click image to toggle zoom · Press Esc to close</span>
+        <span>Saved in Pixelmorphic Library</span>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const wrap = modal.querySelector('#mc-lb-wrap');
+    const imgEl = modal.querySelector('#mc-lb-img');
+    const resetBtn = modal.querySelector('#mc-lb-zoom-reset');
+    const bgBtn = modal.querySelector('#mc-lb-bg-toggle');
+
+    const applyZoom = () => {
+      if (wrap) wrap.style.transform = `scale(${zoomScale})`;
+      if (resetBtn) resetBtn.textContent = `${Math.round(zoomScale * 100)}%`;
+    };
+
+    modal.querySelector('#mc-lb-zoom-in')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      zoomScale = Math.min(2.6, +(zoomScale + 0.25).toFixed(2));
+      applyZoom();
+    });
+    modal.querySelector('#mc-lb-zoom-out')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      zoomScale = Math.max(0.5, +(zoomScale - 0.25).toFixed(2));
+      applyZoom();
+    });
+    resetBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      zoomScale = 1;
+      applyZoom();
+    });
+    imgEl?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      zoomScale = zoomScale === 1 ? 1.65 : 1;
+      applyZoom();
+    });
+    bgBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      useLightBg = !useLightBg;
+      if (wrap) {
+        wrap.classList.toggle('light-bg', useLightBg);
+        wrap.classList.toggle('dark-bg', !useLightBg);
+      }
+      bgBtn.textContent = useLightBg ? '🌙 Dark Canvas' : '☀️ Light Canvas';
+    });
+    modal.querySelector('#mc-lb-download')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerDataUrlDownload(opts.url, opts.title || 'pixelmorphic-image');
+    });
+
+    const closeModal = () => {
+      modal.remove();
+      document.removeEventListener('keydown', onKey);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    document.addEventListener('keydown', onKey);
+    modal.querySelector('#mc-lb-close')?.addEventListener('click', closeModal);
+    modal.querySelector('#mc-lb-stage')?.addEventListener('click', (e) => {
+      if (e.target.id === 'mc-lb-stage') closeModal();
+    });
+  }
+
+  function renderThread() {
+    const threadEl = document.getElementById('mc-thread-slot');
+    if (!threadEl) return;
+
+    let html = state.messages
+      .map((m, idx) => {
+        if (m.role === 'user') {
+          return `<div class="mc-user-bubble">${esc(m.content)}</div>`;
+        }
+
+        if (m.responseType === 'image' && m.image) {
+          const displaySrc = healClientImageUri(m.image.imageUrl || m.image.rawFluxUrl || '', m.query || m.image.prompt || '');
+          const backupSrc = m.image.rawFluxUrl || '';
+          const ratioStr = String(m.image.aspectRatio || '3:4');
+          const aspectClass = ratioStr === '16:9' ? 'mc-aspect-landscape' : (ratioStr === '1:1' ? 'mc-aspect-square' : 'mc-aspect-portrait');
+          const isEdu = Boolean(
+            m.image.isEducationalDiagram ||
+            displaySrc.startsWith('data:image/svg+xml') ||
+            /\b(diagram|labeled|labelled|anatomy|cell|brain|heart|eye|structure|organelle|infographic)\b/i.test(m.query || '')
+          );
+          return `
+            <div class="mc-ai-card" style="padding:14px;">
+              <div class="mc-image-showcase ${aspectClass} ${isEdu ? 'mc-edu-diagram' : ''}">
+                <div class="mc-image-crop-frame" data-preview-img="${idx}" title="Click for Full Preview">
+                  <img
+                    src="${displaySrc}"
+                    data-backup-src="${backupSrc}"
+                    onerror="window.__mcHealBrokenImg && window.__mcHealBrokenImg(this)"
+                    alt="${esc(m.query)}"
+                    loading="eager"
+                    referrerpolicy="no-referrer"
+                    style="display:block;width:100%;height:100%;object-fit:contain;min-height:340px;"
+                  >
+                </div>
+                <div class="mc-image-bar">
+                  <span style="font-size:11.5px;opacity:0.85;">✓ Saved to Library (${esc(ratioStr)} · ${esc(m.image.quality || 'Standard')})</span>
+                  <div style="display:flex;gap:8px;">
+                    <button class="mc-foot-btn" data-preview-img="${idx}">⤢ Full Preview</button>
+                    <button class="mc-foot-btn" data-dl-img="${idx}">⬇ Download</button>
+                    <button class="mc-foot-btn" data-regen-ultra="${idx}">✨ HD</button>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        }
+
+        if (m.responseType === 'ebook' && m.ebook) {
+          const eb = m.ebook;
+          const chHtml = (eb.chapters || [])
+            .map(
+              (ch) => `
+              <div class="mc-ebook-chapter">
+                <div style="font-size:11px;font-weight:600;color:#059669;text-transform:uppercase;">Chapter ${ch.number}</div>
+                <h3 style="margin:4px 0 10px;font-family:'Newsreader',serif;font-size:20px;color:#0b2419;">${esc(ch.title)}</h3>
+                ${ch.imageUrl ? `<img src="${ch.imageUrl}" alt="${esc(ch.title)}" referrerpolicy="no-referrer">` : ''}
+                <div class="mc-ai-body">${formatCleanMarkdown(ch.contentMarkdown || '')}</div>
+              </div>`
+            )
+            .join('');
+
+          return `
+            <div class="mc-ai-card">
+              <div class="mc-ebook-wrap">
+                <div class="mc-ebook-cover">
+                  ${eb.coverImageUrl ? `<img src="${eb.coverImageUrl}" alt="Cover" referrerpolicy="no-referrer">` : ''}
+                  <div>
+                    <h2 style="font-family:'Newsreader',serif;font-size:26px;margin:0 0 8px;color:#ffffff;">${esc(eb.title)}</h2>
+                    <div style="font-size:13.5px;color:#d1fae5;margin-bottom:16px;">${esc(eb.subtitle || '')}</div>
+                    <button class="mc-foot-btn" data-export-pdf="${idx}">📕 Download PDF</button>
+                  </div>
+                </div>
+                ${chHtml}
+              </div>
+              <div class="mc-card-footer">
+                <span style="font-size:11.5px;color:#059669;font-weight:500;">✓ Saved to Library</span>
+                <button class="mc-foot-btn" data-export-pdf="${idx}">📕 Save PDF</button>
+              </div>
+            </div>`;
+        }
+
+        return `
+          <div class="mc-ai-card">
+            <div class="mc-ai-body">${formatCleanMarkdown(m.answer || '')}</div>
+            <div class="mc-card-footer">
+              <div style="display:flex;gap:6px;">
+                <button class="mc-foot-btn" data-copy-msg="${idx}">Copy</button>
+                <button class="mc-foot-btn" data-share-msg="${idx}">Share</button>
+                <button class="mc-foot-btn" data-export-pdf="${idx}">PDF</button>
+              </div>
+            </div>
+          </div>`;
+      })
+      .join('');
+
+    if (state.isRunning) {
+      const label = state.actionMode === 'image'
+        ? 'Generating visual...'
+        : state.actionMode === 'ebook'
+          ? 'Creating illustrated eBook...'
+          : 'Thinking...';
+
+      html += `
+        <div class="mc-thinking-card">
+          <div class="mc-thinking-aurora"></div>
+          <div class="mc-thinking-row">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div class="mc-orbital">
+                <div class="mc-ring1"></div>
+                <div class="mc-ring2"></div>
+                <div class="mc-core"></div>
+              </div>
+              <div style="font-size:14.5px;font-weight:600;color:#ffffff;" id="mc-live-step-label">${label}</div>
+            </div>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6ee7b7;" id="mc-elapsed-timer">0.0s</span>
+          </div>
+          <div class="mc-shimmer-bar" style="width:88%;"></div>
+          <div class="mc-shimmer-bar" style="width:68%;"></div>
+        </div>`;
+    }
+
+    threadEl.innerHTML = html;
+
+    threadEl.querySelectorAll('[data-preview-img]').forEach((el) => {
+      el.onclick = () => {
+        const m = state.messages[parseInt(el.getAttribute('data-preview-img'), 10)];
+        const srcUrl = m && m.image && (m.image.imageUrl || m.image.rawFluxUrl);
+        if (srcUrl) {
+          openImageLightbox({
+            url: srcUrl,
+            title: m.query || m.image.prompt || 'Generated Image',
+            aspectRatio: m.image.aspectRatio || '3:4',
+            isEducational: m.image.isEducationalDiagram
+          });
+        }
+      };
+    });
+
+    threadEl.querySelectorAll('[data-dl-img]').forEach((btn) => {
+      btn.onclick = () => {
+        const m = state.messages[parseInt(btn.getAttribute('data-dl-img'), 10)];
+        const srcUrl = m && m.image && (m.image.imageUrl || m.image.rawFluxUrl);
+        if (srcUrl) {
+          triggerDataUrlDownload(srcUrl, m.query || 'pixelmorphic-image');
+        }
+      };
+    });
+
+    threadEl.querySelectorAll('[data-copy-msg]').forEach((btn) => {
+      btn.onclick = () => {
+        const m = state.messages[parseInt(btn.getAttribute('data-copy-msg'), 10)];
+        if (m) {
+          navigator.clipboard.writeText(m.answer || '');
+          btn.textContent = 'Copied';
+          setTimeout(() => { btn.textContent = 'Copy'; }, 1400);
+        }
+      };
+    });
+
+    threadEl.querySelectorAll('[data-share-msg]').forEach((btn) => {
+      btn.onclick = async () => {
+        const m = state.messages[parseInt(btn.getAttribute('data-share-msg'), 10)];
+        if (!m) return;
+        const txt = `${m.answer || ''}`;
+        if (navigator.share) {
+          try { await navigator.share({ title: m.query || 'Pixelmorphic AI', text: txt }); return; } catch (_) {}
+        }
+        await navigator.clipboard.writeText(txt);
+        btn.textContent = 'Shared';
+        setTimeout(() => { btn.textContent = 'Share'; }, 1400);
+      };
+    });
+
+    threadEl.querySelectorAll('[data-export-pdf]').forEach((btn) => {
+      btn.onclick = () => {
+        const m = state.messages[parseInt(btn.getAttribute('data-export-pdf'), 10)];
+        if (m) exportMessageToPDF(m);
+      };
+    });
+
+    threadEl.querySelectorAll('[data-regen-ultra]').forEach((btn) => {
+      btn.onclick = () => {
+        const m = state.messages[parseInt(btn.getAttribute('data-regen-ultra'), 10)];
+        if (m && m.query) {
+          state.imageQuality = 'ultra';
+          state.actionMode = 'image';
+          sendChatMessage(m.query, 'image');
+        }
+      };
+    });
+  }
+
+  function buildLiveFluxUrl(prompt, quality, aspect) {
+    const p = normalizeClientTypos(prompt);
+    const isHuman = /\b(human\s+portrait|person|man|woman|girl|boy|child|portrait|face|headshot|selfie|ceo|founder|model|actor|hacker|doctor|engineer|student|crowd|people)\b/i.test(p) && !/\b(human\s+heart|human\s+body|human\s+brain|human\s+anatomy|human\s+cell)\b/i.test(p);
+    const isInfo = /\b(infographic|infograph|diagram|chart|flowchart|vector|nature|landscape|poster|logo|cover|text|heart|anatomy|brain|cell)\b/i.test(p);
+    const cleanP = p.replace(/^(?:please\s+)?(?:create|generate|genrate|make|draw|render|show|give|banao)\s+(?:me\s+)?(?:an?\s+|the\s+)?(?:hd\s+|realistic\s+)?(?:infographic\s+diagram|infographic|diagram|image|img|imge|photo|picture|pic|portrait|poster)\s*(?:of|about|for|showing|on|ka|ki|ke)?\s*/i, '').trim() || p;
+    let enhanced = '';
+    if (isInfo && !isHuman) {
+      if (/\b(brain|cerebrum|cerebellum|brainstem|sagittal)\b/i.test(p)) {
+        enhanced = 'Clean medical textbook scientific diagram of human brain sagittal cross-section view. Clear anatomical accuracy and correct spatial orientation: Frontal Lobe at front anterior, Parietal Lobe at upper superior, Occipital Lobe at rear posterior, Temporal Lobe at bottom, C-shaped Corpus Callosum in center, Thalamus, Cerebellum with distinct arbor vitae branching at rear inferior base, Brainstem exiting at bottom. Crisp fine pointer leader lines pointing directly to each part with legible printed typography labels: Frontal Lobe, Parietal Lobe, Occipital Lobe, Temporal Lobe, Corpus Callosum, Thalamus, Cerebellum, Brainstem. Clean neutral medical white background, sharp vector lines, high contrast educational illustration.';
+      } else if (/\b(heart|cardiac|ventricle|atrium|aorta)\b/i.test(p)) {
+        enhanced = 'Clean medical textbook scientific anatomical cross-section diagram of the human heart showing internal chambers. Anatomically correct structures: Superior Vena Cava and Aorta at top, Right Atrium, Tricuspid Valve, Right Ventricle, Left Atrium, Mitral Valve, thick muscular Left Ventricle wall, and Pulmonary Artery. Neat fine pointer leader lines with legible printed typography labels: Aorta, Superior Vena Cava, Right Atrium, Right Ventricle, Left Atrium, Left Ventricle, Septum. Clean neutral medical white background, sharp educational medical illustration.';
+      } else {
+        enhanced = `Detailed full-color scientific educational infographic diagram of ${cleanP}. Clear structural cross-section with accurate spatial composition, crisp pointer lines, and clean legible printed English typography labels naming every major part. Clean studio presentation, sharp educational textbook illustration, high resolution.`;
+      }
+    } else {
+      enhanced = `${cleanP}, award-winning photorealistic DSLR photograph, 85mm f/1.4 lens, natural skin texture, cinematic lighting, 8k`;
+    }
+    const model = isHuman ? 'flux-realism' : 'flux';
+    const wantsWide = /\b(landscape|widescreen|wide|horizontal|16\s*:\s*9|banner|panoramic)\b/i.test(p) || aspect === '16:9';
+    const wantsSquare = /\b(square|1\s*:\s*1)\b/i.test(p) || aspect === '1:1';
+    const w = wantsWide ? 1280 : (wantsSquare ? 1024 : 768);
+    const h = wantsWide ? 768 : (wantsSquare ? 1024 : 1024);
+    const seed = Math.floor(Math.random() * 899999) + 100000;
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(enhanced)}?width=${w}&height=${h}&model=${model}&nologo=true&enhance=true&seed=${seed}`;
+  }
+
+  async function sendChatMessage(customPromptText, forceMode) {
+    const input = document.getElementById('mc-chat-input');
+    const rawText = customPromptText !== undefined ? customPromptText : (input ? input.value.trim() : '');
+    if (!rawText || state.isRunning) return;
+
+    const repairedText = normalizeClientTypos(rawText);
+    const detectedConstraint = detectClientConstraint(repairedText);
+
+    const wantsEb = forceMode === 'ebook' || state.actionMode === 'ebook' || /\b(ebook|e-book|illustrated\s+book|booklet)\b/i.test(repairedText);
+    const wantsImg = !wantsEb && (forceMode === 'image' || state.actionMode === 'image' || isClientImagePrompt(repairedText));
+    const effectiveMode = wantsImg ? 'image' : wantsEb ? 'ebook' : state.actionMode;
+    const currentQuality = state.imageQuality;
+
+    state.messages.push({ role: 'user', content: rawText });
+    if (input && customPromptText === undefined) {
+      input.value = '';
+      input.placeholder = 'Ask anything...';
+    }
+    state.isRunning = true;
+    state.startTimeMs = Date.now();
+    renderThread();
+
+    clearInterval(state.elapsedTimer);
+    state.elapsedTimer = setInterval(() => {
+      const sec = (Date.now() - state.startTimeMs) / 1000;
+      const el = document.getElementById('mc-elapsed-timer');
+      if (el) el.textContent = sec.toFixed(1) + 's';
+      const stageEl = document.getElementById('mc-thinking-stage-label');
+      if (stageEl && wantsImg) {
+        if (sec < 3.0) stageEl.textContent = 'Step 1/4 · Understanding prompt & repairing grammar...';
+        else if (sec < 8.5) stageEl.textContent = 'Step 2/4 · Researching live web facts & component labels...';
+        else if (sec < 16.0) stageEl.textContent = 'Step 3/4 · Synthesizing high-resolution AI centerpiece...';
+        else stageEl.textContent = 'Step 4/4 · Compositing verified vector callouts & HD layout...';
+      }
+    }, 100);
+
+    try {
+      const resp = await fetch('/api/research?chatMode=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatMode: true,
+          message: repairedText,
+          query: repairedText,
+          model: state.chatModel || 'morphic-chat-pro',
+          chatModel: state.chatModel || 'morphic-chat-pro',
+          actionMode: effectiveMode,
+          imageQuality: currentQuality,
+          aspectRatio: null, // Default 3:4 in General Chat unless customer prompt asks for landscape
+          webSearch: state.webSearch,
+          attachments: state.attachments,
+          history: state.messages.slice(-6)
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) throw new Error(data.error || 'Request failed');
+
+      if (wantsImg || (data.responseType === 'image' && data.image)) {
+        const resolvedAspect = data.image?.aspectRatio || (/\b(landscape|widescreen|wide|horizontal|16\s*:\s*9|banner)\b/i.test(repairedText) ? '16:9' : (/\b(square|1\s*:\s*1)\b/i.test(repairedText) ? '1:1' : '3:4'));
+        const rawImgUrl = data.image?.imageUrl || buildLiveFluxUrl(repairedText, currentQuality, resolvedAspect);
+        const cleanDataUrl = await cropWatermarkIfBase64(rawImgUrl, data.image?.isFalNative);
+        const imgObj = {
+          imageUrl: cleanDataUrl,
+          rawFluxUrl: data.image?.rawFluxUrl || (rawImgUrl.startsWith('http') ? rawImgUrl : undefined),
+          aspectRatio: resolvedAspect,
+          isFalNative: Boolean(data.image?.isFalNative),
+          isEducationalDiagram: Boolean(data.image?.isEducationalDiagram),
+          quality: currentQuality === 'ultra' ? 'HD' : 'Standard',
+          prompt: repairedText
+        };
+        state.messages.push({
+          role: 'assistant',
+          responseType: 'image',
+          query: rawText,
+          image: imgObj
+        });
+        addToLibrary({
+          type: 'image',
+          title: repairedText.slice(0, 50),
+          dataUrl: cleanDataUrl,
+          rawFluxUrl: imgObj.rawFluxUrl
+        });
+      } else if (wantsEb || (data.responseType === 'ebook' && data.ebook)) {
+        const eb = data.ebook;
+        eb.coverImageUrl = await cropWatermarkIfBase64(eb.coverImageUrl);
+        for (const ch of (eb.chapters || [])) {
+          ch.imageUrl = await cropWatermarkIfBase64(ch.imageUrl);
+        }
+        const msgObj = {
+          role: 'assistant',
+          responseType: 'ebook',
+          query: rawText,
+          ebook: eb
+        };
+        state.messages.push(msgObj);
+        addToLibrary({
+          type: 'document',
+          title: `eBook: ${eb.title}`,
+          dataUrl: eb.coverImageUrl,
+          msgObj
+        });
+      } else {
+        const rawAns = data.answer || data.reportMarkdown || '';
+        const cleanAns = cleanAndEnforceChatText(rawAns, detectedConstraint);
+        const msgObj = {
+          role: 'assistant',
+          responseType: 'chat',
+          query: rawText,
+          answer: cleanAns
+        };
+        state.messages.push(msgObj);
+        if (data.autoTriggerPdf || effectiveMode === 'pdf') {
+          addToLibrary({ type: 'document', title: `PDF: ${rawText.slice(0, 40)}`, msgObj });
+          setTimeout(() => exportMessageToPDF(msgObj), 300);
+        }
+      }
+    } catch (err) {
+      if (wantsImg) {
+        const resolvedAspect = /\b(landscape|widescreen|wide|horizontal|16\s*:\s*9|banner)\b/i.test(repairedText) ? '16:9' : (/\b(square|1\s*:\s*1)\b/i.test(repairedText) ? '1:1' : '3:4');
+        const fluxUrl = buildLiveFluxUrl(repairedText, currentQuality, resolvedAspect);
+        state.messages.push({
+          role: 'assistant',
+          responseType: 'image',
+          query: rawText,
+          image: {
+            imageUrl: fluxUrl,
+            rawFluxUrl: fluxUrl,
+            aspectRatio: resolvedAspect,
+            quality: currentQuality === 'ultra' ? 'HD' : 'Standard',
+            prompt: repairedText
+          }
+        });
+        addToLibrary({
+          type: 'image',
+          title: repairedText.slice(0, 50),
+          dataUrl: fluxUrl,
+          rawFluxUrl: fluxUrl
+        });
+      } else if (wantsEb) {
+        const cleanTopic = repairedText.replace(/^(?:create|make|write)\s+(?:an?\s+)?(?:illustrated\s+)?(?:ebook|e-book)\s+(?:on|about)?\s*/i, '').trim() || repairedText;
+        const coverUrl = buildLiveFluxUrl(`Book cover for ${cleanTopic}`, currentQuality, '3:4');
+        const ch1Url = buildLiveFluxUrl(`Scientific infographic diagram of ${cleanTopic}`, currentQuality, '16:9');
+        const ebObj = {
+          title: cleanTopic,
+          subtitle: 'Illustrated Edition',
+          coverImageUrl: coverUrl,
+          chapters: [
+            {
+              number: 1,
+              title: `Core Architecture & Foundations of ${cleanTopic}`,
+              imageUrl: ch1Url,
+              contentMarkdown: `**${cleanTopic}** encompasses key structural innovations and real-world applications deployed across global industries.`
+            }
+          ]
+        };
+        const msgObj = { role: 'assistant', responseType: 'ebook', query: rawText, ebook: ebObj };
+        state.messages.push(msgObj);
+        addToLibrary({ type: 'document', title: `eBook: ${cleanTopic}`, dataUrl: coverUrl, msgObj });
+      } else {
+        try {
+          const cleanKw = repairedText.replace(/^(?:hello|hi|hey|what is|who is|tell me about|explain)\s+/i, '').replace(/[?.,!]/g, '').trim() || repairedText;
+          const sRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanKw)}&utf8=&format=json&origin=*&srlimit=1`);
+          const sData = await sRes.json();
+          const topTitle = sData?.query?.search?.[0]?.title;
+          if (topTitle) {
+            const exRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(topTitle)}&format=json&origin=*`);
+            const exData = await exRes.json();
+            const page = Object.values(exData?.query?.pages || {})[0];
+            if (page && page.extract) {
+              state.messages.push({
+                role: 'assistant',
+                responseType: 'chat',
+                query: rawText,
+                answer: cleanAndEnforceChatText(page.extract.slice(0, 700), detectedConstraint)
+              });
+            }
+          }
+        } catch (_) {}
+      }
+    } finally {
+      clearInterval(state.elapsedTimer);
+      state.isRunning = false;
+      state.actionMode = 'auto';
+      saveThreads();
+      syncLeftSidebar();
+      renderModeAndAttachments();
+      renderThread();
+    }
+  }
+
+  function mountGeneralChatView(targetEl) {
+    targetEl.innerHTML = `
+      <div class="mc-shell" id="mc-shell-root">
+        <div class="mc-topbar">
+          <h1 class="mc-title">What can I help with?</h1>
+          <div class="mc-top-actions">
+            <button class="mc-pill-btn" id="mc-new-chat-btn">+ New chat</button>
+          </div>
+        </div>
+
+        <div class="mc-composer">
+          <textarea
+            id="mc-chat-input"
+            style="background:transparent !important;background-color:transparent !important;color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;caret-color:#10b981 !important;"
+            placeholder="Ask anything..."
+          ></textarea>
+
+          <div class="mc-mode-bar" id="mc-mode-slot"></div>
+
+          <div class="mc-controls-row">
+            <div class="mc-controls-left">
+              <div style="position:relative;">
+                <button class="mc-plus-btn" id="mc-plus-btn" title="Add">+</button>
+                <div class="mc-popover" id="mc-plus-popover" style="display:none;">
+                  <button class="mc-pop-item" id="mc-up-img">🖼️ Upload image</button>
+                  <button class="mc-pop-item" id="mc-up-doc">📄 Upload file</button>
+                  <div class="mc-pop-divider"></div>
+                  <button class="mc-pop-item" id="mc-act-image">🎨 Create image</button>
+                  <button class="mc-pop-item" id="mc-act-ebook">📚 Create eBook</button>
+                  <button class="mc-pop-item" id="mc-act-pdf">📑 Create PDF</button>
+                </div>
+              </div>
+
+              <input type="file" id="mc-file-img" accept="image/*" style="display:none;">
+              <input type="file" id="mc-file-doc" accept=".txt,.md,.csv,.json,.js,.py,.html,.pdf" style="display:none;">
+
+              <select class="mc-select-pill" id="mc-model-select" title="Model">
+                <option value="morphic-chat-pro" ${state.chatModel === 'morphic-chat-pro' ? 'selected' : ''}>Morphic Pro (Balanced)</option>
+                <option value="morphic-chat-ultra" ${state.chatModel === 'morphic-chat-ultra' ? 'selected' : ''}>Morphic Ultra (Deep Thinking)</option>
+                <option value="morphic-chat-fast" ${state.chatModel === 'morphic-chat-fast' ? 'selected' : ''}>Morphic Fast (High Speed)</option>
+              </select>
+
+              <button class="mc-web-toggle active" id="mc-web-toggle" title="Real-Time Web Search">
+                🌐 Search
+              </button>
+
+              <div class="mc-quality-group" id="mc-quality-group" title="Image Quality">
+                <button class="mc-quality-btn active" data-q="standard">Standard</button>
+                <button class="mc-quality-btn" data-q="ultra">HD</button>
+              </div>
+            </div>
+
+            <button class="mc-send-btn" id="mc-send-btn" title="Send">↑</button>
+          </div>
+        </div>
+
+        <div class="mc-thread" id="mc-thread-slot"></div>
+      </div>
+    `;
+
+    const chatInput = document.getElementById('mc-chat-input');
+    if (chatInput) {
+      chatInput.addEventListener('input', updateQualityToggleVisibility);
+      chatInput.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey || !e.shiftKey) && e.key === 'Enter') {
+          e.preventDefault();
+          sendChatMessage();
+        }
+      });
+    }
+
+    const plusBtn = document.getElementById('mc-plus-btn');
+    const plusPop = document.getElementById('mc-plus-popover');
+    if (plusBtn && plusPop) {
+      plusBtn.onclick = (e) => {
+        e.stopPropagation();
+        plusPop.style.display = plusPop.style.display === 'none' ? 'block' : 'none';
+      };
+      document.addEventListener('click', () => {
+        plusPop.style.display = 'none';
+      });
+    }
+
+    document.getElementById('mc-act-image')?.addEventListener('click', () => {
+      state.actionMode = 'image';
+      renderModeAndAttachments();
+      if (chatInput) {
+        chatInput.placeholder = 'Describe the image or infographic...';
+        chatInput.focus();
+      }
+    });
+
+    document.getElementById('mc-act-ebook')?.addEventListener('click', () => {
+      state.actionMode = 'ebook';
+      renderModeAndAttachments();
+      if (chatInput) {
+        chatInput.placeholder = 'eBook topic...';
+        chatInput.focus();
+      }
+    });
+
+    document.getElementById('mc-act-pdf')?.addEventListener('click', () => {
+      state.actionMode = 'pdf';
+      renderModeAndAttachments();
+      if (chatInput) {
+        chatInput.placeholder = 'PDF topic...';
+        chatInput.focus();
+      }
+    });
+
+    const imgInput = document.getElementById('mc-file-img');
+    const docInput = document.getElementById('mc-file-doc');
+    document.getElementById('mc-up-img')?.addEventListener('click', () => imgInput?.click());
+    document.getElementById('mc-up-doc')?.addEventListener('click', () => docInput?.click());
+
+    imgInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.attachments.push({ type: 'image', name: file.name, dataUrl: reader.result });
+        addToLibrary({ type: 'upload', title: file.name, dataUrl: reader.result });
+        syncLeftSidebar();
+        renderModeAndAttachments();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    docInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const content = String(reader.result || '').slice(0, 12000);
+        state.attachments.push({ type: 'document', name: file.name, content });
+        addToLibrary({ type: 'upload', title: file.name, content });
+        syncLeftSidebar();
+        renderModeAndAttachments();
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById('mc-model-select')?.addEventListener('change', (e) => {
+      state.chatModel = e.target.value || 'morphic-chat-pro';
+    });
+
+    document.getElementById('mc-web-toggle')?.addEventListener('click', function () {
+      state.webSearch = !state.webSearch;
+      this.classList.toggle('active', state.webSearch);
+    });
+
+    targetEl.querySelectorAll('.mc-quality-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        targetEl.querySelectorAll('.mc-quality-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.imageQuality = btn.getAttribute('data-q') || 'standard';
+      });
+    });
+
+    document.getElementById('mc-new-chat-btn')?.addEventListener('click', startNewChatThread);
+    document.getElementById('mc-send-btn')?.addEventListener('click', () => sendChatMessage());
+
+    renderModeAndAttachments();
+    renderThread();
+  }
+
+  function mountImageStudioView(targetEl) {
+    const imgItems = state.library.filter((x) => x.type === 'image');
+
+    targetEl.innerHTML = `
+      <div class="mc-shell" id="mc-shell-root">
+        <div class="mc-topbar">
+          <h1 class="mc-title">Image Studio</h1>
+          <div class="mc-top-actions">
+            <button class="mc-pill-btn" id="mc-go-library-btn">🗂️ View Library (${state.library.length})</button>
+          </div>
+        </div>
+
+        <div class="mc-composer">
+          <textarea
+            id="mc-img-studio-input"
+            style="background:transparent !important;background-color:transparent !important;color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;caret-color:#10b981 !important;"
+            placeholder="Describe the realistic portrait, scene, or labeled infographic you want to create..."
+          ></textarea>
+
+          <div class="mc-controls-row">
+            <div class="mc-controls-left">
+              <div class="mc-quality-group visible">
+                <button class="mc-quality-btn ${state.imageQuality === 'standard' ? 'active' : ''}" data-sq="standard">Standard</button>
+                <button class="mc-quality-btn ${state.imageQuality === 'ultra' ? 'active' : ''}" data-sq="ultra">HD</button>
+              </div>
+
+              <select class="mc-select-pill" id="mc-studio-aspect">
+                <option value="3:4" ${state.imageAspect === '3:4' ? 'selected' : ''}>3:4 Portrait (Default)</option>
+                <option value="16:9" ${state.imageAspect === '16:9' ? 'selected' : ''}>16:9 Landscape</option>
+                <option value="1:1" ${state.imageAspect === '1:1' ? 'selected' : ''}>1:1 Square</option>
+              </select>
+            </div>
+
+            <button class="mc-send-btn" id="mc-studio-gen-btn" title="Generate">↑</button>
+          </div>
+        </div>
+
+        <div id="mc-studio-live-slot" style="margin-top:20px;"></div>
+
+        <div style="margin-top:28px;">
+          <div style="font-size:13px;font-weight:600;color:#52665c;margin-bottom:10px;">Recent Creations (${imgItems.length})</div>
+          <div class="mc-grid" id="mc-studio-grid">
+            ${
+              imgItems.length
+                ? imgItems
+                    .map(
+                      (it) => `
+                  <div class="mc-lib-card">
+                    <div class="mc-lib-thumb-wrap" data-prev-lib="${esc(it.id)}" title="Click for Full Preview">
+                      <img class="mc-lib-thumb" src="${healClientImageUri(it.dataUrl, it.title)}" onerror="window.__mcHealBrokenImg && window.__mcHealBrokenImg(this)" alt="${esc(it.title)}" referrerpolicy="no-referrer">
+                    </div>
+                    <div class="mc-lib-body">
+                      <div class="mc-lib-title" title="${esc(it.title)}">${esc(it.title)}</div>
+                      <div class="mc-lib-meta">${esc(it.createdAt || '')}</div>
+                    </div>
+                    <div class="mc-lib-actions">
+                      <button class="mc-foot-btn" data-prev-lib="${esc(it.id)}">⤢ Preview</button>
+                      <button class="mc-foot-btn" data-dl-lib="${esc(it.id)}">⬇ Download</button>
+                    </div>
+                  </div>`
+                    )
+                    .join('')
+                : '<div style="font-size:13px;color:#64748b;">Generated images and infographics will appear here and in your Library.</div>'
+            }
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('mc-go-library-btn')?.addEventListener('click', () => {
+      state.activeView = 'library';
+      window.location.hash = '#library';
+      checkAndMountMainView(true);
+    });
+
+    targetEl.querySelectorAll('[data-sq]').forEach((btn) => {
+      btn.onclick = () => {
+        targetEl.querySelectorAll('[data-sq]').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.imageQuality = btn.getAttribute('data-sq') || 'standard';
+      };
+    });
+
+    document.getElementById('mc-studio-aspect')?.addEventListener('change', (e) => {
+      state.imageAspect = e.target.value;
+    });
+
+    const studioInput = document.getElementById('mc-img-studio-input');
+    const runStudioGen = async () => {
+      const prompt = studioInput ? studioInput.value.trim() : '';
+      if (!prompt || state.isRunning) return;
+      const liveSlot = document.getElementById('mc-studio-live-slot');
+      state.isRunning = true;
+      if (liveSlot) {
+        liveSlot.innerHTML = `
+          <div class="mc-thinking-card">
+            <div class="mc-thinking-aurora"></div>
+            <div class="mc-thinking-row">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div class="mc-orbital"><div class="mc-ring1"></div><div class="mc-ring2"></div><div class="mc-core"></div></div>
+                <div style="font-size:14.5px;font-weight:600;color:#ffffff;">Rendering visual...</div>
+              </div>
+            </div>
+            <div class="mc-shimmer-bar" style="width:85%;"></div>
+          </div>`;
+      }
+
+      try {
+        const resp = await fetch('/api/research?chatMode=1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chatMode: true,
+            message: prompt,
+            actionMode: 'image',
+            imageQuality: state.imageQuality,
+            aspectRatio: state.imageAspect
+          })
+        });
+        const data = await resp.json();
+        const rawUrl = data?.image?.imageUrl || buildLiveFluxUrl(prompt, state.imageQuality, state.imageAspect);
+        const cleanDataUrl = await cropWatermarkIfBase64(rawUrl, data?.image?.isFalNative);
+        addToLibrary({
+          type: 'image',
+          title: prompt.slice(0, 60),
+          dataUrl: cleanDataUrl,
+          rawFluxUrl: data?.image?.rawFluxUrl || (rawUrl.startsWith('http') ? rawUrl : undefined)
+        });
+      } catch (_) {
+        const rawUrl = buildLiveFluxUrl(prompt, state.imageQuality, state.imageAspect);
+        addToLibrary({ type: 'image', title: prompt.slice(0, 60), dataUrl: rawUrl, rawFluxUrl: rawUrl });
+      } finally {
+        state.isRunning = false;
+        syncLeftSidebar();
+        mountImageStudioView(targetEl);
+      }
+    };
+
+    document.getElementById('mc-studio-gen-btn')?.addEventListener('click', runStudioGen);
+    studioInput?.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey || !e.shiftKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runStudioGen();
+      }
+    });
+
+    targetEl.querySelectorAll('[data-prev-lib]').forEach((el) => {
+      el.onclick = () => {
+        const id = el.getAttribute('data-prev-lib');
+        const found = state.library.find((x) => x.id === id);
+        if (found && found.dataUrl) {
+          openImageLightbox({ url: found.dataUrl, title: found.title || 'Studio Visual', aspectRatio: state.imageAspect || '3:4' });
+        }
+      };
+    });
+
+    targetEl.querySelectorAll('[data-dl-lib]').forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-dl-lib');
+        const found = state.library.find((x) => x.id === id);
+        if (found && found.dataUrl) triggerDataUrlDownload(found.dataUrl, found.title || 'pixelmorphic-visual');
+      };
+    });
+  }
+
+  function mountLibraryView(targetEl) {
+    const items = state.library.filter((x) => {
+      if (state.libraryFilter === 'all') return true;
+      return x.type === state.libraryFilter;
+    });
+
+    targetEl.innerHTML = `
+      <div class="mc-shell" id="mc-shell-root">
+        <div class="mc-topbar">
+          <h1 class="mc-title">Library</h1>
+          <div class="mc-top-actions">
+            <button class="mc-pill-btn ${state.libraryFilter === 'all' ? 'active' : ''}" data-lf="all">All (${state.library.length})</button>
+            <button class="mc-pill-btn ${state.libraryFilter === 'image' ? 'active' : ''}" data-lf="image">Images</button>
+            <button class="mc-pill-btn ${state.libraryFilter === 'upload' ? 'active' : ''}" data-lf="upload">Uploads</button>
+            <button class="mc-pill-btn ${state.libraryFilter === 'document' ? 'active' : ''}" data-lf="document">eBooks & PDFs</button>
+          </div>
+        </div>
+
+        <div class="mc-grid">
+          ${
+            items.length
+              ? items
+                  .map(
+                    (it) => `
+                <div class="mc-lib-card">
+                  <div class="mc-lib-thumb-wrap" ${it.dataUrl ? `data-lib-prev="${esc(it.id)}" title="Click for Full Preview"` : ''}>
+                    ${
+                      it.dataUrl
+                        ? `<img class="mc-lib-thumb" src="${healClientImageUri(it.dataUrl, it.title)}" onerror="window.__mcHealBrokenImg && window.__mcHealBrokenImg(this)" alt="${esc(it.title)}" referrerpolicy="no-referrer">`
+                        : `<div style="font-size:32px;color:#059669;">📄</div>`
+                    }
+                  </div>
+                  <div class="mc-lib-body">
+                    <div class="mc-lib-title" title="${esc(it.title)}">${esc(it.title)}</div>
+                    <div class="mc-lib-meta">${esc(it.type.toUpperCase())} · ${esc(it.createdAt || '')}</div>
+                  </div>
+                  <div class="mc-lib-actions">
+                    ${
+                      it.dataUrl
+                        ? `<button class="mc-foot-btn" data-lib-prev="${esc(it.id)}">⤢ Preview</button><button class="mc-foot-btn" data-lib-dl="${esc(it.id)}">⬇ Download</button>`
+                        : it.msgObj
+                          ? `<button class="mc-foot-btn" data-lib-pdf="${esc(it.id)}">📄 Open PDF</button>`
+                          : ''
+                    }
+                    <button class="mc-foot-btn" data-lib-del="${esc(it.id)}" style="margin-left:auto;color:#b91c1c;">Delete</button>
+                  </div>
+                </div>`
+                  )
+                  .join('')
+              : `<div style="font-size:13.5px;color:#64748b;grid-column:1/-1;padding:32px 0;">Your Library is empty. Generated images, eBooks, PDFs, and uploaded files are saved here automatically.</div>`
+          }
+        </div>
+      </div>
+    `;
+
+    targetEl.querySelectorAll('[data-lf]').forEach((btn) => {
+      btn.onclick = () => {
+        state.libraryFilter = btn.getAttribute('data-lf') || 'all';
+        mountLibraryView(targetEl);
+      };
+    });
+
+    targetEl.querySelectorAll('[data-lib-prev]').forEach((el) => {
+      el.onclick = () => {
+        const found = state.library.find((x) => x.id === el.getAttribute('data-lib-prev'));
+        if (found && found.dataUrl) {
+          openImageLightbox({ url: found.dataUrl, title: found.title || 'Library Item' });
+        }
+      };
+    });
+
+    targetEl.querySelectorAll('[data-lib-dl]').forEach((btn) => {
+      btn.onclick = () => {
+        const found = state.library.find((x) => x.id === btn.getAttribute('data-lib-dl'));
+        if (found && found.dataUrl) triggerDataUrlDownload(found.dataUrl, found.title || 'pixelmorphic-item');
+      };
+    });
+
+    targetEl.querySelectorAll('[data-lib-pdf]').forEach((btn) => {
+      btn.onclick = () => {
+        const found = state.library.find((x) => x.id === btn.getAttribute('data-lib-pdf'));
+        if (found && found.msgObj) exportMessageToPDF(found.msgObj);
+      };
+    });
+
+    targetEl.querySelectorAll('[data-lib-del]').forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-lib-del');
+        state.library = state.library.filter((x) => x.id !== id);
+        saveLibrary();
+        syncLeftSidebar();
+        mountLibraryView(targetEl);
+      };
+    });
+  }
+
+  function restoreHostContainerChildren(viewContainer) {
+    if (!viewContainer) return;
+    const slot = document.getElementById('mc-dedicated-host-slot');
+    if (slot) slot.style.display = 'none';
+    Array.from(viewContainer.children).forEach((ch) => {
+      if (ch.dataset && ch.dataset.mcHidden === '1') {
+        ch.style.display = '';
+        delete ch.dataset.mcHidden;
+      }
+    });
+  }
+
+  function checkAndMountMainView(forceRemount) {
+    injectAllStyles();
+    syncLeftSidebar();
+
+    const explicitRoot = document.getElementById('morphic-general-chat-root');
+    if (explicitRoot) {
+      if (!explicitRoot.dataset.mcMounted || forceRemount) {
+        explicitRoot.dataset.mcMounted = '1';
+        if (state.activeView === 'images') mountImageStudioView(explicitRoot);
+        else if (state.activeView === 'library') mountLibraryView(explicitRoot);
+        else mountGeneralChatView(explicitRoot);
+      }
+      return;
+    }
+
+    const viewContainer =
+      document.querySelector('[data-view="chat"]')
+      || document.querySelector('[data-page="chat"]')
+      || document.getElementById('chat-view')
+      || document.getElementById('general-view')
+      || document.querySelector('main')
+      || document.querySelector('.content, .main-content, #app, #root');
+
+    const hash = (window.location.hash || '').toLowerCase();
+    if (hash.includes('business') || hash.includes('research') || hash.includes('code') || hash.includes('study') || hash.includes('education')) {
+      restoreHostContainerChildren(viewContainer);
+      return;
+    }
+
+    const hostChatPlaceholder = document.querySelector('textarea[placeholder*="What would you like to work on"]');
+    const isExplicitChat = hash.includes('chat') || hash.includes('general') || Boolean(hostChatPlaceholder);
+    const isImages = hash.includes('images');
+    const isLibrary = hash.includes('library');
+
+    if (!isExplicitChat && !isImages && !isLibrary) {
+      restoreHostContainerChildren(viewContainer);
+      return;
+    }
+
+    if (isImages) state.activeView = 'images';
+    else if (isLibrary) state.activeView = 'library';
+    else state.activeView = 'chat';
+
+    if (!viewContainer) return;
+
+    // Non-destructively hide host sibling nodes inside viewContainer while keeping them alive in DOM
+    let slot = document.getElementById('mc-dedicated-host-slot');
+    if (!slot || slot.parentElement !== viewContainer) {
+      if (slot) slot.remove();
+      slot = document.createElement('div');
+      slot.id = 'mc-dedicated-host-slot';
+      viewContainer.appendChild(slot);
+    }
+
+    Array.from(viewContainer.children).forEach((ch) => {
+      if (ch.id === 'mc-dedicated-host-slot') return;
+      if (ch.style.display !== 'none') {
+        ch.dataset.mcHidden = '1';
+        ch.style.display = 'none';
+      }
+    });
+    slot.style.display = 'block';
+
+    const currentShell = slot.querySelector('#mc-shell-root');
+    if (currentShell && !forceRemount && slot.dataset.mcView === state.activeView) {
+      return;
+    }
+
+    slot.dataset.mcView = state.activeView;
+    if (state.activeView === 'images') mountImageStudioView(slot);
+    else if (state.activeView === 'library') mountLibraryView(slot);
+    else mountGeneralChatView(slot);
+  }
+
+  window.addEventListener('hashchange', () => setTimeout(() => checkAndMountMainView(true), 40));
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      checkAndMountMainView(false);
+      loadFromServerDisk();
+    }, 60);
+  });
+  setTimeout(() => {
+    checkAndMountMainView(false);
+    loadFromServerDisk();
+  }, 120);
+  setInterval(() => checkAndMountMainView(false), 1200);
+})();
+
+</script>
+</body>
+</html>
