@@ -337,6 +337,32 @@ function computeInitials(name, email) {
 }
 
 function sendGmailOtpViaTls({ toEmail, otpCode, userName, smtpUser, smtpPass }) {
+  const resendKey = String(process.env.RESEND_API_KEY || '').trim();
+  if (resendKey) {
+    const fromAddr = String(process.env.RESEND_FROM || 'Pixelmorphic AI <noreply@pixelmorphicai.co>').trim();
+    const safeName = String(userName || 'there').replace(/[<>&"]/g, '');
+    return fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + resendKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: fromAddr,
+        to: [toEmail],
+        subject: otpCode + ' is your Pixelmorphic AI verification code',
+        html: '<div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#0b1411;color:#ecfdf5;border-radius:14px;border:1px solid #10b98144"><h2 style="margin:0 0 8px;color:#34d399">Pixelmorphic AI</h2><p style="margin:0 0 18px;color:#d1fae5">Hi ' + safeName + ', use this private 6-digit verification code to sign in:</p><div style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;padding:16px;background:#064e3b;color:#ffffff;border-radius:10px">' + otpCode + '</div><p style="margin:18px 0 0;font-size:12px;color:#a7f3d0">This code expires in 10 minutes. If you did not request it, you can ignore this email.</p></div>'
+      })
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) return { sent: true, provider: 'resend', id: data.id || null };
+      console.error('[Pixelmorphic Resend OTP] Error:', r.status, data);
+      return { sent: false, reason: data.message || ('RESEND_HTTP_' + r.status) };
+    }).catch((err) => {
+      console.error('[Pixelmorphic Resend OTP] Network error:', err.message);
+      return { sent: false, reason: err.message || 'RESEND_NETWORK_ERROR' };
+    });
+  }
   return new Promise((resolve) => {
     const user = String(smtpUser || process.env.SMTP_USER || '').trim();
     const pass = String(smtpPass || process.env.SMTP_PASS || '').replace(/\s+/g, '');
@@ -4493,7 +4519,7 @@ export async function handleGeneralChatApi(req, res) {
           ok: true,
           authenticated: Boolean(activeSession),
           isAdmin,
-          smtpConfigured: Boolean(activeSmtpUser && activeSmtpPass),
+          smtpConfigured: Boolean(process.env.RESEND_API_KEY || (activeSmtpUser && activeSmtpPass)),
           smtpUser: isAdmin ? activeSmtpUser : '',
           requireAuthOnStartup: store.smtpConfig && typeof store.smtpConfig.requireAuthOnStartup === 'boolean'
             ? store.smtpConfig.requireAuthOnStartup
@@ -4627,7 +4653,7 @@ export async function handleGeneralChatApi(req, res) {
           displayName: resolvedName,
           mode,
           smtpSent: Boolean(smtpRes && smtpRes.sent),
-          smtpConfigured: Boolean(activeSmtpUser && activeSmtpPass),
+          smtpConfigured: Boolean(process.env.RESEND_API_KEY || (activeSmtpUser && activeSmtpPass)),
           smtpReason: (smtpRes && smtpRes.reason) || ''
           // NOTE: devOtpCode is intentionally NOT sent to the browser so OTPs stay 100% PRIVATE!
         }));
