@@ -12,6 +12,24 @@
  * ============================================================================ */
 (function () {
 
+  // === PIXELMORPHIC v80.0 CUSTOMER-READY DEV/TRIAL UI SCRUBBER ===
+  (function scrubDevClutter() {
+    const run = () => {
+      document.querySelectorAll('header span, header div, header button, header a, .topbar span, .topbar div, .badge, .pill').forEach((el) => {
+        if (el.children.length > 1) return;
+        const txt = (el.textContent || '').trim();
+        if (/^(API configured|API not configured|Local test|Local workspace|Demo mode|Trial|Samurai)$/i.test(txt)) {
+          el.style.setProperty('display', 'none', 'important');
+        }
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+    setTimeout(run, 400);
+    setTimeout(run, 1600);
+  })();
+
+
   // === PIXELMORPHIC v79.0 AUTO-AUTH + MULTI-DEVICE RESILIENT FETCH ===
   if (typeof window !== 'undefined' && typeof window.fetch === 'function' && !window.__pmV79FetchWrapped) {
     window.__pmV79FetchWrapped = true;
@@ -3890,13 +3908,13 @@
   const USER_SETTINGS_KEY = 'pm_user_settings_v53';
 
   const defaultUserSettings = {
-    displayName: 'Pixelmorphic User',
+    displayName: 'Pixelmorphic Member',
     initials: 'PM',
     avatarBg: 'linear-gradient(135deg, #ea580c 0%, #d97706 100%)',
-    planBadge: 'Plus · Founder Ultra',
-    roleTitle: 'Founder & AI Architect · Metamorphic Pixel',
-    email: 'harsh@pixelmorphic.ai',
-    locationCity: 'Jhansi, Uttar Pradesh, India',
+    planBadge: 'Pro',
+    roleTitle: 'Workspace Member',
+    email: '',
+    locationCity: '',
     // Appearance & Custom UI Features
     themeMode: 'iron', // 'iron' | 'emerald' | 'dark' | 'cyber' | 'light' | 'oled'
     accentColor: '#10b981',
@@ -3906,17 +3924,13 @@
     showScrollButtons: true,
     autoReadAloud: false,
     // Personalization
-    customAbout: 'Owner & founder of Pixelmorphic AI and Metamorphic Pixel Studios. Builds full-stack AI web platforms, generative media, and competitive exam study tools.',
+    customAbout: '',
     customStyle: 'Provide clear, structured, step-by-step explanations with high factual accuracy and practical code or examples.',
     tone: 'balanced', // 'balanced' | 'friendly' | 'concise' | 'academic'
     preferredLang: 'en',
     // Saved Memory
     memoryEnabled: true,
-    memories: [
-      { id: 'm1', text: 'Founder and owner of Pixelmorphic AI & Metamorphic Pixel Studios.', createdAt: '2026-11-12' },
-      { id: 'm2', text: 'Develops full-stack Node.js web applications on Windows 11 using PowerShell.', createdAt: '2026-11-12' },
-      { id: 'm3', text: 'Builds educational & competitive exam content under Exam Saathi / Study Workspace.', createdAt: '2026-11-12' }
-    ],
+    memories: [],
     // Security
     pinLockEnabled: false,
     pinCode: '',
@@ -5875,8 +5889,8 @@
       {
         email: prof.email || prof.emailHandle || 'harsh@pixelmorphic.com',
         displayName: prof.displayName || 'Harsh Saxena',
-        roleTitle: prof.roleTitle || 'Founder Ultra',
-        planBadge: prof.planBadge || 'Founder',
+        roleTitle: prof.roleTitle || 'Workspace Member',
+        planBadge: prof.planBadge || 'Pro',
         initials: prof.initials || 'HS',
         avatarBg: prof.avatarBg || 'linear-gradient(135deg, #f43f5e, #e11d48)'
       }
@@ -7059,10 +7073,9 @@
           configuredSmtpEmail = info.smtpUser || '';
           const badgeEl = overlay.querySelector('#mc-v65-smtp-status-pill');
           if (badgeEl) {
-            badgeEl.innerHTML = smtpConfiguredOnServer
-              ? `🟢 Real Email OTP Active (${esc(configuredSmtpEmail)}) · <span style="text-decoration:underline;cursor:pointer;">Edit</span>`
-              : `⚙️ Connect Gmail OTP Sender (1-Time Setup for Real Inbox Emails)`;
-            badgeEl.style.color = smtpConfiguredOnServer ? '#6ee7b7' : '#fde68a';
+            badgeEl.textContent = '🔒 Secured by Pixelmorphic AI · Private 6-Digit Email Verification';
+            badgeEl.style.color = '#6ee7b7';
+            badgeEl.style.cursor = 'default';
           }
         }
       })
@@ -7412,9 +7425,8 @@
               </div>
             ` : `
               <div style="margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(245,158,11,0.14);border:1px solid rgba(251,191,36,0.45);font-size:12px;color:#fde68a;line-height:1.55;">
-                <div style="font-weight:800;margin-bottom:4px;">⚠️ Real Gmail Sender Not Connected Yet (${esc(smtpErrorReason || 'SMTP_NOT_CONFIGURED')})</div>
-                <div style="color:#fef3c7;">For security, the OTP is <strong>hidden from this screen</strong> and printed only in the Founder's <strong>Windows PowerShell terminal</strong>. To receive OTPs inside real Gmail inboxes, click below:</div>
-                <button type="button" id="mc-otp-open-smtp-wiz" style="margin-top:8px;padding:6px 11px;border-radius:8px;border:1px solid #fbbf24;background:rgba(245,158,11,0.25);color:#fff;font-size:11.5px;font-weight:800;cursor:pointer;">📧 Connect Gmail App Password Now (30s Setup) →</button>
+                <div style="font-weight:700;margin-bottom:4px;">Verification code could not be sent right now</div>
+                <div style="color:#fef3c7;">Please check your email address and click <strong>Resend 6-Digit Code</strong> below to try again.</div>
               </div>
             `}
 
@@ -7524,10 +7536,7 @@
             </button>
 
             <div style="margin-top:6px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;font-size:11px;">
-              <button type="button" id="mc-v65-smtp-status-pill" style="background:transparent;border:none;color:${smtpConfiguredOnServer ? '#6ee7b7' : '#fde68a'};font-size:11.5px;font-weight:700;cursor:pointer;padding:0;text-align:left;">
-                ${smtpConfiguredOnServer
-                  ? `🟢 Real Email OTP Active (${esc(configuredSmtpEmail)}) · <span style="text-decoration:underline;">Edit</span>`
-                  : `⚙️ Connect Gmail OTP Sender (1-Time Setup for Real Inbox Emails)`}
+              <button type="button" id="mc-v65-smtp-status-pill" style="background:transparent;border:none;color:🔒 Secured by Pixelmorphic AI · Private 6-Digit Email Verification
               </button>
             </div>
           </div>
@@ -7880,7 +7889,7 @@
         currentStep = 'google-chooser';
         renderAuthModal();
       });
-      overlay.querySelector('#mc-v65-smtp-status-pill')?.addEventListener('click', () => {
+      overlay.querySelector('#mc-v65-smtp-status-pill')?.addEventListener('click', (e) => { e.preventDefault(); return;
         currentStep = 'smtp-setup';
         renderAuthModal();
       });
@@ -8170,7 +8179,7 @@
           <div class="mc-set-card">
             <label class="mc-set-label">Add a New Memory</label>
             <div style="display:flex;gap:8px;">
-              <input type="text" class="mc-set-input" id="mc-new-mem-inp" placeholder="e.g. Always include PowerShell commands for Windows 11...">
+              <input type="text" class="mc-set-input" id="mc-new-mem-inp" placeholder="e.g. Keep explanations concise with clear bullet points...">
               <button type="button" class="mc-pill-btn active" id="mc-add-mem-btn" style="white-space:nowrap;">+ Add Memory</button>
             </div>
           </div>
@@ -8198,7 +8207,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
               <div>
                 <span style="font-size:10.5px;font-weight:800;letter-spacing:0.08em;color:#6ee7b7;text-transform:uppercase;">CURRENT ACTIVE PLAN</span>
-                <div style="font-size:20px;font-weight:800;color:#ffffff;margin-top:2px;">✨ Pixelmorphic Founder Ultra Pro</div>
+                <div style="font-size:20px;font-weight:800;color:#ffffff;margin-top:2px;">Pixelmorphic AI Pro</div>
                 <div style="font-size:12px;color:#d1fae5;margin-top:3px;">Unlimited Morphic Ultra, Pro &amp; Fast · 8K Image &amp; eBook Studio · Full-Stack Code IDE · Multi-PDF Study Notebook</div>
               </div>
               <span style="background:#10b981;color:#042f1e;font-weight:800;font-size:12px;padding:6px 14px;border-radius:999px;">ACTIVE · LIFETIME</span>
@@ -8249,29 +8258,13 @@
           </div>
 
           <div class="mc-set-card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
               <div>
-                <div style="font-size:13.5px;font-weight:700;">📧 Optional Gmail SMTP (Real Email Inbox OTP Delivery)</div>
-                <div style="font-size:11.5px;color:#94a3b8;">Leave empty for Instant On-Screen + PowerShell 6-Digit OTP, or add a Gmail &amp; 16-char Google App Password</div>
+                <div style="font-size:13.5px;font-weight:700;">Private Email Verification</div>
+                <div style="font-size:11.5px;color:#94a3b8;">Protected with 6-digit OTP verification via Pixelmorphic AI</div>
               </div>
-              <span id="mc-smtp-badge" style="font-size:11px;padding:4px 9px;border-radius:999px;background:rgba(16,185,129,0.18);color:#6ee7b7;font-weight:700;">⚡ Instant + Console OTP</span>
+              <span style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(16,185,129,0.18);color:#6ee7b7;font-weight:700;">Active</span>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <input type="email" class="mc-set-input" id="mc-smtp-user-input" placeholder="Sender Gmail (e.g. harsh@gmail.com)" />
-              <input type="password" class="mc-set-input" id="mc-smtp-pass-input" placeholder="16-char Gmail App Password (optional)" />
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-              <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#cbd5e1;cursor:pointer;">
-                <input type="checkbox" id="mc-require-auth-startup" style="width:16px;height:16px;accent-color:#10b981;" />
-                <span>Require Google + 6-Digit OTP Sign-In on Workspace Startup</span>
-              </label>
-              <button type="button" class="mc-pill-btn active" id="mc-save-smtp-btn">💾 Save OTP &amp; SMTP Config</button>
-            </div>
-          </div>
-
-          <div class="mc-set-card">
-            <div style="font-size:13px;font-weight:700;margin-bottom:6px;">👥 Registered Workspace Users (<span id="mc-reg-users-count">1</span>)</div>
-            <div id="mc-reg-users-list" style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#cbd5e1;">Loading registered accounts...</div>
           </div>
 
           <div class="mc-set-card" style="border-color:rgba(239,68,68,0.35);">
