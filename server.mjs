@@ -382,12 +382,21 @@ export function createApp(config, { fetchImpl = fetch, audit = diskAudit } = {})
     if (false) {
       return json(res, 403, { error: 'LOCAL_ONLY', message: 'Use localhost or 0.0.0.0.' });
     }
-    // Allow both localhost and 0.0.0.0 origins on the current port to prevent ORIGIN_REJECTED mismatch
-    const allowedOrigins = [`http://localhost:${port}`, `http://0.0.0.0:${port}`, ...(req.headers.origin ? [req.headers.origin] : [])];
-    if (req.headers.origin && !allowedOrigins.includes(req.headers.origin)) {
+    // Production origin guard: allow pixelmorphicai.co, Railway, localhost, and all normal GET browser navigations
+    const allowedOrigins = [
+      `http://localhost:${port}`,
+      `http://127.0.0.1:${port}`,
+      `http://0.0.0.0:${port}`,
+      'https://pixelmorphicai.co',
+      'https://www.pixelmorphicai.co',
+      ...(process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean)
+    ];
+    const reqOrigin = String(req.headers.origin || '').trim();
+    const isAllowedOrigin = !reqOrigin || allowedOrigins.includes(reqOrigin) || /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(reqOrigin);
+    if (!isAllowedOrigin) {
       return json(res, 403, { error: 'ORIGIN_REJECTED', message: 'Cross-origin requests are blocked.' });
     }
-    if (req.headers['sec-fetch-site'] === 'cross-site') {
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS' && req.headers['sec-fetch-site'] === 'cross-site' && !isAllowedOrigin) {
       return json(res, 403, { error: 'ORIGIN_REJECTED' });
     }
 
