@@ -2036,7 +2036,7 @@ function buildAnatomicalDiagramPrompt(rawSubject, fullPrompt) {
     pollinationsModel: 'flux-realism',
     numSteps: isUltra ? 24 : 4,
     buildEnhancedPrompt: (subj) =>
-      `${subj}, award-winning photorealistic DSLR photograph, 85mm f/1.4 lens, natural skin texture and pores, cinematic lighting, ultra-detailed 8k`,
+      `${subj}, well-composed full frame, natural proportions, balanced camera distance, sharp focus, rich realistic detail, high quality`,
     categoryLabel: 'Photorealistic Human Engine'
   };
 }
@@ -3081,7 +3081,7 @@ export async function generateMorphicImage(prompt, quality = 'standard', request
   // Check if this is an Infographic / Labeled Diagram / Scientific Structure / Architecture request
   const isInfographicOrDiagram =
     route.engineId === 'engine-2-infographic-diagram' ||
-    /\b(infographic|infograph|diagram|labeled|labelled|anatomy|cross[\s\-]*section|organelle|structure\s+of|parts\s+of|architecture|flowchart|mechanism|showing.*(?:and|with)|how\s+.*works)\b/i.test(pLower);
+    /\b(infographic|infograph|diagram|labeled|labelled|anatomy|cross[\s\-]*section|organelle|structure\s+of|parts\s+of|architecture|flowchart|mechanism|how\s+.*works)\b/i.test(pLower);
 
   if (isInfographicOrDiagram) {
     // 1. Check classic human/biology textbook atlas ONLY when it's a pure biological organ (Heart, Eye, Brain, Cell)
@@ -3122,9 +3122,9 @@ export async function generateMorphicImage(prompt, quality = 'standard', request
 
   // Pipeline B: Pure Photorealistic & Artistic Image Generation (Portraits, Cars, Scenes, Products, Posters)
   const enhancedPrompt = route.buildEnhancedPrompt(cleanSubject).slice(0, 450);
-  const width = aspectRatio === '1:1' ? 1024 : aspectRatio === '16:9' ? 1280 : 768;
-  const height = aspectRatio === '1:1' ? 1024 : aspectRatio === '16:9' ? 768 : 1024;
-  const falSize = aspectRatio === '1:1' ? 'square_hd' : aspectRatio === '16:9' ? 'landscape_16_9' : 'portrait_4_3';
+  const width = aspectRatio === '1:1' ? 1024 : aspectRatio === '16:9' ? 1280 : aspectRatio === '9:16' ? 720 : aspectRatio === '4:3' ? 1024 : 768;
+  const height = aspectRatio === '1:1' ? 1024 : aspectRatio === '16:9' ? 720 : aspectRatio === '9:16' ? 1280 : aspectRatio === '4:3' ? 768 : 1024;
+  const falSize = aspectRatio === '1:1' ? 'square_hd' : aspectRatio === '16:9' ? 'landscape_16_9' : aspectRatio === '9:16' ? 'portrait_16_9' : aspectRatio === '4:3' ? 'landscape_4_3' : 'portrait_4_3';
 
   const keyToTry = falKey || apiKey;
   if (keyToTry && (keyToTry.includes(':') || process.env.FAL_KEY)) {
@@ -3140,7 +3140,7 @@ export async function generateMorphicImage(prompt, quality = 'standard', request
           : {
               prompt: enhancedPrompt,
               image_size: falSize,
-              num_inference_steps: quality === 'ultra' ? 28 : 12,
+              num_inference_steps: quality === 'ultra' ? 28 : 4,
               num_images: 1,
               enable_safety_checker: true
             };
@@ -3181,7 +3181,7 @@ export async function generateMorphicImage(prompt, quality = 'standard', request
   }
 
   // Serverless FLUX Engine fallback (fetches real image bytes & verifies magic bytes)
-  const seed = Math.floor(Math.random() * 799999) + 100000 + (seedOffset * 7919);
+  const seed = Math.floor(Math.random() * 799999) + 100000;
   const shortPollPrompt = enhancedPrompt.slice(0, 220);
   const candidateUrls = [
     `https://image.pollinations.ai/prompt/${encodeURIComponent(shortPollPrompt)}?width=${width}&height=${height}&model=${route.pollinationsModel}&nologo=true&enhance=true&seed=${seed}`,

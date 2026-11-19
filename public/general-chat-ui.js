@@ -13035,6 +13035,8 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
                 <option value="3:4" ${state.imageAspect === '3:4' ? 'selected' : ''}>3:4 Portrait (Default)</option>
                 <option value="16:9" ${state.imageAspect === '16:9' ? 'selected' : ''}>16:9 Landscape</option>
                 <option value="1:1" ${state.imageAspect === '1:1' ? 'selected' : ''}>1:1 Square</option>
+                <option value="9:16" ${state.imageAspect === '9:16' ? 'selected' : ''}>9:16 Vertical (Phone)</option>
+                <option value="4:3" ${state.imageAspect === '4:3' ? 'selected' : ''}>4:3 Classic</option>
               </select>
             </div>
 
@@ -14133,5 +14135,204 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     `;
     (document.head || document.documentElement).appendChild(s);
   })();
+
+  /* === v82.0 IMAGE STUDIO FRAMING FIX + MULTI-LANGUAGE SITE SWITCHER (EN DEFAULT) === */
+  (function initV82ImageAndI18n() {
+    if (typeof document === 'undefined' || document.getElementById('pm-v82-style')) return;
+    const st = document.createElement('style');
+    st.id = 'pm-v82-style';
+    st.textContent = `
+      .mc-image-crop-frame {
+        min-height: 220px !important;
+        max-height: 560px !important;
+        height: auto !important;
+        background: #071c12 !important;
+      }
+      .mc-image-crop-frame img {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: 540px !important;
+        object-fit: contain !important;
+      }
+      .mc-lib-thumb-wrap {
+        height: 240px !important;
+        background: #081c14 !important;
+      }
+      .mc-lib-thumb {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        padding: 4px !important;
+      }
+      #pm-lang-switcher {
+        position: fixed;
+        top: 10px;
+        right: 12px;
+        z-index: 100046;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(52, 211, 153, 0.45);
+        background: rgba(6, 26, 18, 0.92);
+        color: #ecfdf5;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        outline: none;
+      }
+      #pm-lang-switcher option {
+        background: #071b14;
+        color: #ecfdf5;
+      }
+      @media (max-width: 860px) {
+        #pm-lang-switcher {
+          top: 11px;
+          right: 108px;
+          height: 34px;
+          max-width: 104px;
+          font-size: 11.5px;
+          padding: 0 6px;
+        }
+      }
+    `;
+    (document.head || document.documentElement).appendChild(st);
+    const DICT = {
+      en: {
+        'New Chat': 'New Chat', 'Image Studio': 'Image Studio', 'Library': 'Library',
+        'Code Studio': 'Code Studio', 'Study': 'Study', 'Settings': 'Settings',
+        'Sign In': 'Sign In', 'Sign Out': 'Sign Out', 'Menu': 'Menu',
+        'Standard': 'Standard', 'HD': 'HD', 'Preview': 'Preview', 'Download': 'Download',
+        'General Chat': 'General Chat', 'Research Lab': 'Research Lab',
+        'Send': 'Send', 'Generate': 'Generate',
+        '_ph_chat': 'Ask Pixelmorphic AI anything...',
+        '_ph_img': 'Describe the exact image, scene, style, and framing you want...'
+      },
+      hi: {
+        'New Chat': 'नई चैट', 'Image Studio': 'इमेज स्टूडियो', 'Library': 'लाइब्रेरी',
+        'Code Studio': 'कोड स्टूडियो', 'Study': 'स्टडी', 'Settings': 'सेटिंग्स',
+        'Sign In': 'साइन इन', 'Sign Out': 'साइन आउट', 'Menu': 'मेनू',
+        'Standard': 'स्टैंडर्ड', 'HD': 'एचडी (HD)', 'Preview': 'प्रीव्यू', 'Download': 'डाउनलोड',
+        'General Chat': 'जनरल चैट', 'Research Lab': 'रिसर्च लैब',
+        'Send': 'भेजें', 'Generate': 'बनाएं',
+        '_ph_chat': 'Pixelmorphic AI से कुछ भी पूछें...',
+        '_ph_img': 'आप जैसी इमेज बनाना चाहते हैं उसका पूरा विवरण लिखें...'
+      },
+      ta: {
+        'New Chat': 'புதிய அரட்டை', 'Image Studio': 'பட ஸ்டுடியோ', 'Library': 'நூலகம்',
+        'Code Studio': 'கோட் ஸ்டுடியோ', 'Study': 'படிப்பு', 'Settings': 'அமைப்புகள்',
+        'Sign In': 'உள்நுழைக', 'Sign Out': 'வெளியேறு', 'Menu': 'பட்டியல்',
+        'Standard': 'நிலையானது', 'HD': 'HD', 'Preview': 'முன்னோட்டம்', 'Download': 'பதிவிறக்கு',
+        'General Chat': 'பொது அரட்டை', 'Research Lab': 'ஆராய்ச்சி ஆய்வகம்',
+        'Send': 'அனுப்பு', 'Generate': 'உருவாக்கு',
+        '_ph_chat': 'Pixelmorphic AI-யிடம் எதுவும் கேளுங்கள்...',
+        '_ph_img': 'நீங்கள் உருவாக்க விரும்பும் படத்தை விவரிக்கவும்...'
+      },
+      bn: {
+        'New Chat': 'নতুন চ্যাট', 'Image Studio': 'ইমেজ স্টুডিও', 'Library': 'লাইব্রেরি',
+        'Code Studio': 'কোড স্টুডিও', 'Study': 'স্টাডি', 'Settings': 'সেটিংস',
+        'Sign In': 'সাইন ইন', 'Sign Out': 'সাইন আউট', 'Menu': 'মেনু',
+        'Standard': 'স্ট্যান্ডার্ড', 'HD': 'HD', 'Preview': 'প্রিভিউ', 'Download': 'ডাউনলোড',
+        'General Chat': 'জেনারেল চ্যাট', 'Research Lab': 'রিসার্চ ল্যাব',
+        'Send': 'পাঠান', 'Generate': 'তৈরি করুন',
+        '_ph_chat': 'Pixelmorphic AI-কে যা খুশি জিজ্ঞাসা করুন...',
+        '_ph_img': 'আপনি যেমন ছবি তৈরি করতে চান তা বিস্তারিত লিখুন...'
+      },
+      zh: {
+        'New Chat': '新对话', 'Image Studio': '图像工作室', 'Library': '素材库',
+        'Code Studio': '代码工作室', 'Study': '学习空间', 'Settings': '设置',
+        'Sign In': '登录', 'Sign Out': '退出登录', 'Menu': '菜单',
+        'Standard': '标准', 'HD': '高清 HD', 'Preview': '预览', 'Download': '下载',
+        'General Chat': '智能对话', 'Research Lab': '研究实验室',
+        'Send': '发送', 'Generate': '生成',
+        '_ph_chat': '向 Pixelmorphic AI 提问任何问题...',
+        '_ph_img': '详细描述你想生成的图像、构图和风格...'
+      },
+      ja: {
+        'New Chat': '新しいチャット', 'Image Studio': '画像スタジオ', 'Library': 'ライブラリ',
+        'Code Studio': 'コードスタジオ', 'Study': '学習', 'Settings': '設定',
+        'Sign In': 'サインイン', 'Sign Out': 'サインアウト', 'Menu': 'メニュー',
+        'Standard': '標準', 'HD': '高画質 HD', 'Preview': 'プレビュー', 'Download': 'ダウンロード',
+        'General Chat': '一般チャット', 'Research Lab': 'リサーチラボ',
+        'Send': '送信', 'Generate': '生成',
+        '_ph_chat': 'Pixelmorphic AI に何でも質問してください...',
+        '_ph_img': '作成したい画像の内容・構図・スタイルを入力してください...'
+      }
+    };
+    const REVERSE_MAP = {};
+    Object.values(DICT).forEach((tbl) => {
+      Object.entries(tbl).forEach(([k, v]) => {
+        if (!k.startsWith('_')) REVERSE_MAP[v] = k;
+      });
+    });
+    const getLang = () => {
+      try {
+        const saved = localStorage.getItem('pm_site_lang');
+        return saved && DICT[saved] ? saved : 'en';
+      } catch (_) { return 'en'; }
+    };
+    const applyLang = (langCode) => {
+      const lang = DICT[langCode] ? langCode : 'en';
+      const tbl = DICT[lang];
+      document.documentElement.lang = lang;
+      const chatInput = document.getElementById('mc-chat-input');
+      if (chatInput && tbl._ph_chat) chatInput.placeholder = tbl._ph_chat;
+      const imgInput = document.getElementById('mc-img-studio-input');
+      if (imgInput && tbl._ph_img) imgInput.placeholder = tbl._ph_img;
+      const nodes = document.querySelectorAll('button, a, h1, h2, .mc-title, .mc-side-nav-btn, .mc-pill-btn, .mc-foot-btn, span');
+      nodes.forEach((el) => {
+        if (!el || el.id === 'pm-lang-switcher' || el.closest('#pm-lang-switcher') || el.children.length > 0) return;
+        const raw = (el.textContent || '').trim();
+        if (!raw || raw.length > 40) return;
+        const m = raw.match(/^([+☰⤢⬇🗂️✨🔍⚙️]+s*)(.+)$/);
+        const prefix = m ? m[1] : '';
+        const core = m ? m[2].trim() : raw;
+        const canon = REVERSE_MAP[core];
+        if (canon && tbl[canon] && core !== tbl[canon]) {
+          el.textContent = prefix + tbl[canon];
+        }
+      });
+    };
+    const mountSwitcher = () => {
+      if (document.getElementById('pm-lang-switcher')) return;
+      const sel = document.createElement('select');
+      sel.id = 'pm-lang-switcher';
+      sel.setAttribute('aria-label', 'Site Language');
+      sel.innerHTML = [
+        '<option value="en">🌐 English</option>',
+        '<option value="hi">🇮🇳 हिन्दी</option>',
+        '<option value="ta">🇮🇳 தமிழ்</option>',
+        '<option value="bn">🇮🇳 বাংলা</option>',
+        '<option value="zh">🇨🇳 中文</option>',
+        '<option value="ja">🇯🇵 日本語</option>'
+      ].join('');
+      sel.value = getLang();
+      sel.addEventListener('change', () => {
+        const next = sel.value || 'en';
+        try { localStorage.setItem('pm_site_lang', next); } catch (_) {}
+        applyLang(next);
+      });
+      (document.body || document.documentElement).appendChild(sel);
+      applyLang(sel.value);
+    };
+    const boot = () => {
+      mountSwitcher();
+      setTimeout(() => applyLang(getLang()), 250);
+      setTimeout(() => applyLang(getLang()), 900);
+      if (typeof MutationObserver !== 'undefined' && document.body) {
+        let timer = null;
+        const obs = new MutationObserver(() => {
+          if (timer) return;
+          timer = setTimeout(() => { timer = null; applyLang(getLang()); }, 180);
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+      }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  })();
 })();
+
 
