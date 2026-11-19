@@ -7963,6 +7963,7 @@
     const navTabs = [
       { id: 'profile', icon: '👤', label: 'Profile' },
       { id: 'appearance', icon: '🎨', label: 'UI Color & Appearance' },
+      { id: 'language', icon: '🌐', label: 'Site Language' },
       { id: 'personalization', icon: '🧠', label: 'Personalization' },
       { id: 'memory', icon: '💾', label: 'Saved Memory' },
       { id: 'billing', icon: '💳', label: 'Billing & Plan' },
@@ -8021,6 +8022,34 @@
           </div>
           <div style="display:flex;justify-content:flex-end;">
             <button type="button" class="mc-pill-btn active" id="mc-save-prof-btn" style="padding:9px 20px;">💾 Save Profile Changes</button>
+          </div>
+        `;
+      } else if (activeTab === 'language') {
+        const curLang = (window.__pmGetSiteLang ? window.__pmGetSiteLang() : 'en');
+        const langOpts = [
+          { code: 'en', flag: '🌐', name: 'English', sub: 'Default Language' },
+          { code: 'hi', flag: '🇮🇳', name: 'हिन्दी', sub: 'Hindi' },
+          { code: 'ta', flag: '🇮🇳', name: 'தமிழ்', sub: 'Tamil' },
+          { code: 'bn', flag: '🇮🇳', name: 'বাংলা', sub: 'Bengali' },
+          { code: 'zh', flag: '🇨🇳', name: '中文 (简体)', sub: 'Mandarin Chinese' },
+          { code: 'ja', flag: '🇯🇵', name: '日本語', sub: 'Japanese' }
+        ];
+        rightHtml = `
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h2 style="margin:0;font-size:20px;font-weight:800;">🌐 Site Language</h2>
+            <button type="button" class="mc-calc-act-key" id="mc-set-close-x">✕ Close</button>
+          </div>
+          <div class="mc-set-card">
+            <label class="mc-set-label">Select Display Language (English is default for all new visitors)</label>
+            <div class="mc-theme-grid">
+              ${langOpts.map(l => `
+                <div class="mc-theme-card ${curLang === l.code ? 'active' : ''}" data-set-lang="${l.code}" style="cursor:pointer;">
+                  <div style="font-size:22px;margin-bottom:4px;">${l.flag}</div>
+                  <div style="font-weight:700;">${l.name}</div>
+                  <div style="font-size:11px;opacity:0.75;font-weight:400;">${l.sub}</div>
+                </div>
+              `).join('')}
+            </div>
           </div>
         `;
       } else if (activeTab === 'appearance') {
@@ -8326,6 +8355,15 @@
         renderModalContent();
       });
 
+      // Site Language bindings
+      backdrop.querySelectorAll('[data-set-lang]').forEach((card) => {
+        card.onclick = () => {
+          const code = card.getAttribute('data-set-lang') || 'en';
+          if (window.__pmSetSiteLang) window.__pmSetSiteLang(code);
+          renderModalContent();
+          if (typeof showDownloadToast === 'function') showDownloadToast('🌐 Language updated');
+        };
+      });
       // Appearance bindings
       backdrop.querySelectorAll('[data-set-theme]').forEach((card) => {
         card.onclick = () => {
@@ -14333,6 +14371,138 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
   })();
+
+  /* === v83.0 SETTINGS LANGUAGE ENGINE (EN DEFAULT, HIDE FLOATING DROPDOWN) === */
+  (function initV83SettingsLanguage() {
+    if (typeof document === 'undefined' || document.getElementById('pm-v83-lang-style')) return;
+    const st = document.createElement('style');
+    st.id = 'pm-v83-lang-style';
+    st.textContent = '#pm-lang-switcher { display: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+    const DICT = {
+      en: {
+        'What can I help with?': 'What can I help with?',
+        'New chat': 'New chat', 'New Chat': 'New Chat', 'Create a job': 'Create a job',
+        'General Chat': 'General Chat', 'Code Studio': 'Code Studio', 'Study Workspace': 'Study Workspace',
+        'Research Lab': 'Research Lab', 'Image Studio': 'Image Studio', 'Library': 'Library',
+        'Settings & Theme': 'Settings & Theme', 'Site Language': 'Site Language',
+        'Search': 'Search', 'Send': 'Send', 'Preview': 'Preview', 'Download': 'Download',
+        'Standard': 'Standard', 'HD': 'HD', 'Sign In': 'Sign In', 'Sign Out': 'Sign Out',
+        '_ph_chat': 'Ask anything...',
+        '_ph_img': 'Describe the exact image, scene, style, and framing you want...'
+      },
+      hi: {
+        'What can I help with?': 'मैं आपकी क्या मदद कर सकता हूँ?',
+        'New chat': 'नई चैट', 'New Chat': 'नई चैट', 'Create a job': 'नया काम शुरू करें',
+        'General Chat': 'जनरल चैट', 'Code Studio': 'कोड स्टूडियो', 'Study Workspace': 'स्टडी वर्कस्पेस',
+        'Research Lab': 'रिसर्च लैब', 'Image Studio': 'इमेज स्टूडियो', 'Library': 'लाइब्रेरी',
+        'Settings & Theme': 'सेटिंग्स और थीम', 'Site Language': 'साइट की भाषा',
+        'Search': 'खोजें', 'Send': 'भेजें', 'Preview': 'प्रीव्यू', 'Download': 'डाउनलोड',
+        'Standard': 'स्टैंडर्ड', 'HD': 'एचडी (HD)', 'Sign In': 'साइन इन', 'Sign Out': 'साइन आउट',
+        '_ph_chat': 'कुछ भी पूछें...',
+        '_ph_img': 'आप जैसी इमेज बनाना चाहते हैं उसका पूरा विवरण लिखें...'
+      },
+      ta: {
+        'What can I help with?': 'நான் உங்களுக்கு எவ்வாறு உதவ முடியும்?',
+        'New chat': 'புதிய அரட்டை', 'New Chat': 'புதிய அரட்டை', 'Create a job': 'புதிய பணி உருவாக்கு',
+        'General Chat': 'பொது அரட்டை', 'Code Studio': 'கோட் ஸ்டுடியோ', 'Study Workspace': 'படிப்பு மையம்',
+        'Research Lab': 'ஆராய்ச்சி ஆய்வகம்', 'Image Studio': 'பட ஸ்டுடியோ', 'Library': 'நூலகம்',
+        'Settings & Theme': 'அமைப்புகள் & தீம்', 'Site Language': 'தள மொழி',
+        'Search': 'தேடு', 'Send': 'அனுப்பு', 'Preview': 'முன்னோட்டம்', 'Download': 'பதிவிறக்கு',
+        'Standard': 'நிலையானது', 'HD': 'HD', 'Sign In': 'உள்நுழைக', 'Sign Out': 'வெளியேறு',
+        '_ph_chat': 'எதுவும் கேளுங்கள்...',
+        '_ph_img': 'நீங்கள் உருவாக்க விரும்பும் படத்தை விவரிக்கவும்...'
+      },
+      bn: {
+        'What can I help with?': 'আমি আপনাকে কীভাবে সাহায্য করতে পারি?',
+        'New chat': 'নতুন চ্যাট', 'New Chat': 'নতুন চ্যাট', 'Create a job': 'নতুন কাজ তৈরি করুন',
+        'General Chat': 'জেনারেল চ্যাট', 'Code Studio': 'কোড স্টুডিও', 'Study Workspace': 'স্টাডি ওয়ার্কস্পেস',
+        'Research Lab': 'রিসার্চ ল্যাব', 'Image Studio': 'ইমেজ স্টুডিও', 'Library': 'লাইব্রেরি',
+        'Settings & Theme': 'সেটিংস ও থিম', 'Site Language': 'সাইটের ভাষা',
+        'Search': 'খুঁজুন', 'Send': 'পাঠান', 'Preview': 'প্রিভিউ', 'Download': 'ডাউনলোড',
+        'Standard': 'স্ট্যান্ডার্ড', 'HD': 'HD', 'Sign In': 'সাইন ইন', 'Sign Out': 'সাইন আউট',
+        '_ph_chat': 'যা খুশি জিজ্ঞাসা করুন...',
+        '_ph_img': 'আপনি যেমন ছবি তৈরি করতে চান তা বিস্তারিত লিখুন...'
+      },
+      zh: {
+        'What can I help with?': '我能为您做些什么？',
+        'New chat': '新对话', 'New Chat': '新对话', 'Create a job': '创建任务',
+        'General Chat': '智能对话', 'Code Studio': '代码工作室', 'Study Workspace': '学习空间',
+        'Research Lab': '研究实验室', 'Image Studio': '图像工作室', 'Library': '素材库',
+        'Settings & Theme': '设置与主题', 'Site Language': '网站语言',
+        'Search': '搜索', 'Send': '发送', 'Preview': '预览', 'Download': '下载',
+        'Standard': '标准', 'HD': '高清 HD', 'Sign In': '登录', 'Sign Out': '退出登录',
+        '_ph_chat': '问我任何问题...',
+        '_ph_img': '详细描述你想生成的图像、构图和风格...'
+      },
+      ja: {
+        'What can I help with?': 'どのようなご用件でしょうか？',
+        'New chat': '新しいチャット', 'New Chat': '新しいチャット', 'Create a job': 'ジョブを作成',
+        'General Chat': '一般チャット', 'Code Studio': 'コードスタジオ', 'Study Workspace': '学習スペース',
+        'Research Lab': 'リサーチラボ', 'Image Studio': '画像スタジオ', 'Library': 'ライブラリ',
+        'Settings & Theme': '設定とテーマ', 'Site Language': 'サイト言語',
+        'Search': '検索', 'Send': '送信', 'Preview': 'プレビュー', 'Download': 'ダウンロード',
+        'Standard': '標準', 'HD': '高画質 HD', 'Sign In': 'サインイン', 'Sign Out': 'サインアウト',
+        '_ph_chat': '何でも質問してください...',
+        '_ph_img': '作成したい画像の内容・構図・スタイルを入力してください...'
+      }
+    };
+    const REVERSE = {};
+    Object.values(DICT).forEach((tbl) => {
+      Object.entries(tbl).forEach(([k, v]) => {
+        if (!k.startsWith('_')) REVERSE[v] = k;
+      });
+    });
+    window.__pmGetSiteLang = () => {
+      try {
+        const s = localStorage.getItem('pm_site_lang');
+        return s && DICT[s] ? s : 'en';
+      } catch (_) { return 'en'; }
+    };
+    const applyLang = (langCode) => {
+      const lang = DICT[langCode] ? langCode : 'en';
+      const tbl = DICT[lang];
+      document.documentElement.lang = lang;
+      const chatInput = document.getElementById('mc-chat-input');
+      if (chatInput && tbl._ph_chat) chatInput.placeholder = tbl._ph_chat;
+      const imgInput = document.getElementById('mc-img-studio-input');
+      if (imgInput && tbl._ph_img) imgInput.placeholder = tbl._ph_img;
+      const nodes = document.querySelectorAll('button, a, h1, h2, .mc-title, .mc-side-nav-btn, .mc-pill-btn, .mc-foot-btn, span, div');
+      nodes.forEach((el) => {
+        if (!el || el.children.length > 0) return;
+        const raw = (el.textContent || '').trim();
+        if (!raw || raw.length > 48) return;
+        const m = raw.match(/^([+☰⤢⬇🗂️✨🔍⚙️🌐›]+s*)(.+?)(s*[›>])?$/);
+        const prefix = m ? m[1] : '';
+        const core = m ? m[2].trim() : raw;
+        const suffix = (m && m[3]) ? m[3] : '';
+        const canon = REVERSE[core];
+        if (canon && tbl[canon] && core !== tbl[canon]) {
+          el.textContent = prefix + tbl[canon] + suffix;
+        }
+      });
+    };
+    window.__pmSetSiteLang = (code) => {
+      const next = DICT[code] ? code : 'en';
+      try { localStorage.setItem('pm_site_lang', next); } catch (_) {}
+      applyLang(next);
+    };
+    const boot = () => {
+      applyLang(window.__pmGetSiteLang());
+      setTimeout(() => applyLang(window.__pmGetSiteLang()), 300);
+      if (typeof MutationObserver !== 'undefined' && document.body) {
+        let t = null;
+        const obs = new MutationObserver(() => {
+          if (t) return;
+          t = setTimeout(() => { t = null; applyLang(window.__pmGetSiteLang()); }, 200);
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+      }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  })();
 })();
+
 
 
