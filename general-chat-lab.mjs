@@ -188,6 +188,58 @@ function createServerSession(userRecord) {
   return rawToken;
 }
 
+
+const PM_PLANS = {
+  free:     { id: 'free',     label: 'Free', priceInr: 0,    dailyChat: 10,  weeklyDeep: 1,  monthlyImg: 5,   monthlyCode: 10,   allowHd: false },
+  pro:      { id: 'pro',      label: 'Pro',  priceInr: 500,  dailyChat: 50,  weeklyDeep: 1,  monthlyImg: 50,  monthlyCode: 100,  allowHd: true  },
+  pro_plus: { id: 'pro_plus', label: 'Pro+', priceInr: 900,  dailyChat: 100, weeklyDeep: 2,  monthlyImg: 100, monthlyCode: 200,  allowHd: true  },
+  max:      { id: 'max',      label: 'Max',  priceInr: 2999, dailyChat: 500, weeklyDeep: 30, monthlyImg: 200, monthlyCode: 1000, allowHd: true  }
+};
+const BLOCKED_TEMP_DOMAINS = new Set(['tempmail.com','temp-mail.org','guerrillamail.com','10minutemail.com','mailinator.com','yopmail.com','trashmail.com','sharklasers.com','dispostable.com','maildrop.cc','getnada.com','mohmal.com']);
+function getDateKeys() {
+  const d = new Date(), day = d.toISOString().slice(0,10), month = d.toISOString().slice(0,7);
+  const j1 = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  const wk = Math.ceil((((d - j1)/86400000) + j1.getUTCDay() + 1)/7);
+  return { day, week: d.getUTCFullYear() + '-W' + String(wk).padStart(2,'0'), month };
+}
+function ensureUserUsage(u) {
+  const k = getDateKeys();
+  if (!u.usage || typeof u.usage !== 'object') u.usage = {};
+  if (u.usage.dayKey !== k.day) { u.usage.dayKey = k.day; u.usage.chatToday = 0; }
+  if (u.usage.weekKey !== k.week) { u.usage.weekKey = k.week; u.usage.deepWeek = 0; }
+  if (u.usage.monthKey !== k.month) { u.usage.monthKey = k.month; u.usage.imgMonth = 0; u.usage.codeMonth = 0; }
+  const pid = (u.planId && PM_PLANS[u.planId]) ? u.planId : (isAdminUser(u) ? 'max' : 'free');
+  if (u.planExpiresAt && Date.now() > Number(u.planExpiresAt) && !isAdminUser(u)) { u.planId = 'free'; u.planBadge = 'Free'; u.planExpiresAt = null; }
+  else { u.planId = pid; u.planBadge = PM_PLANS[pid].label; }
+  return PM_PLANS[u.planId] || PM_PLANS.free;
+}
+function checkAndConsumeQuota(email, kind, isHd) {
+  if (!email) return { ok: true, plan: PM_PLANS.free };
+  const store = loadUsersStore();
+  const u = (store.users || []).find(x => String(x.email||'').toLowerCase() === String(email).toLowerCase());
+  if (!u) return { ok: true, plan: PM_PLANS.free };
+  if (isAdminUser(u)) {
+    const plan = ensureUserUsage(u);
+    if (kind==='chat') u.usage.chatToday++; if (kind==='deep') u.usage.deepWeek++;
+    if (kind==='image') u.usage.imgMonth++; if (kind==='code') u.usage.codeMonth++;
+    saveUsersStore(store); return { ok: true, isAdmin: true, plan, usage: u.usage };
+  }
+  if (u.suspended) return { ok: false, status: 403, error: 'Account suspended by administrator.' };
+  const plan = ensureUserUsage(u);
+  if (plan.id==='free' && store.freeTierEnabled===false) return { ok: false, status: 429, error: 'High demand on Free tier. Upgrade to Pro (Rs.500/mo).' };
+  if (kind==='chat' && u.usage.chatToday>=plan.dailyChat) return { ok: false, status: 429, error: 'Daily chat limit reached ('+plan.dailyChat+'/day). Upgrade in Settings -> Billing & Plan.' };
+  if (kind==='deep' && u.usage.deepWeek>=plan.weeklyDeep) return { ok: false, status: 429, error: 'Weekly Deep Search limit reached ('+plan.weeklyDeep+'/week). Upgrade in Settings -> Billing & Plan.' };
+  if (kind==='image') {
+    if (isHd && !plan.allowHd) return { ok: false, status: 403, error: 'HD images require Pro (Rs.500/mo) or higher.' };
+    if (u.usage.imgMonth>=plan.monthlyImg) return { ok: false, status: 429, error: 'Monthly image limit reached ('+plan.monthlyImg+'/mo). Upgrade in Settings -> Billing & Plan.' };
+  }
+  if (kind==='code' && u.usage.codeMonth>=plan.monthlyCode) return { ok: false, status: 429, error: 'Monthly Code credits reached ('+plan.monthlyCode+'/mo). Upgrade in Settings -> Billing & Plan.' };
+  if (kind==='chat') u.usage.chatToday++; if (kind==='deep') u.usage.deepWeek++;
+  if (kind==='image') u.usage.imgMonth++; if (kind==='code') u.usage.codeMonth++;
+  u.lastActiveAt = new Date().toISOString(); saveUsersStore(store);
+  return { ok: true, plan, usage: u.usage };
+}
+
 function isAdminUser(userRecord) {
   if (!userRecord) return false;
   const email = String(userRecord.email || '').toLowerCase();
@@ -4499,6 +4551,45 @@ export async function handleGeneralChatApi(req, res) {
       const store = loadUsersStore();
       const action = String(payload.authAction || '').trim();
 
+      if (action === 'getMyQuota') {
+        if (!activeSession) { res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,authenticated:false,isAdmin:false,plan:PM_PLANS.free,usage:{chatToday:0,deepWeek:0,imgMonth:0,codeMonth:0}})); return; }
+        const u = (store.users||[]).find(x=>String(x.email||'').toLowerCase()===activeSession.email);
+        const plan = u ? ensureUserUsage(u) : (activeSession.isAdmin ? PM_PLANS.max : PM_PLANS.free);
+        if (u) saveUsersStore(store);
+        res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,authenticated:true,isAdmin:Boolean(activeSession.isAdmin),email:activeSession.email,plan,planExpiresAt:u?.planExpiresAt||null,usage:u?.usage||{chatToday:0,deepWeek:0,imgMonth:0,codeMonth:0}})); return;
+      }
+      if (action === 'adminListUsers') {
+        if (!activeSession || !activeSession.isAdmin) { res.writeHead(403,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'ADMIN_REQUIRED'})); return; }
+        const list = (store.users||[]).map(u=>{ const p=ensureUserUsage(u); return {email:u.email,displayName:u.displayName||'User',planId:p.id,planLabel:p.label,planExpiresAt:u.planExpiresAt||null,suspended:Boolean(u.suspended),isAdmin:isAdminUser(u),usage:u.usage,createdAt:u.createdAt,lastLoginAt:u.lastLoginAt}; });
+        saveUsersStore(store);
+        res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,freeTierEnabled:store.freeTierEnabled!==false,totalUsers:list.length,paidCount:list.filter(x=>x.planId!=='free'&&!x.isAdmin).length,users:list})); return;
+      }
+      if (action === 'adminSetPlan') {
+        if (!activeSession || !activeSession.isAdmin) { res.writeHead(403,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'ADMIN_REQUIRED'})); return; }
+        const u = (store.users||[]).find(x=>String(x.email||'').toLowerCase()===String(payload.targetEmail||'').trim().toLowerCase());
+        const pid = PM_PLANS[payload.planId] ? payload.planId : 'free';
+        if (!u) { res.writeHead(404,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'User not found'})); return; }
+        u.planId = pid; u.planBadge = PM_PLANS[pid].label; u.planExpiresAt = (pid!=='free' && Number(payload.days||30)>0) ? (Date.now()+Number(payload.days||30)*86400000) : null;
+        saveUsersStore(store); res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true})); return;
+      }
+      if (action === 'adminResetQuota') {
+        if (!activeSession || !activeSession.isAdmin) { res.writeHead(403,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'ADMIN_REQUIRED'})); return; }
+        const u = (store.users||[]).find(x=>String(x.email||'').toLowerCase()===String(payload.targetEmail||'').trim().toLowerCase());
+        if (!u) { res.writeHead(404,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'User not found'})); return; }
+        const k = getDateKeys(); u.usage = { dayKey:k.day, chatToday:0, weekKey:k.week, deepWeek:0, monthKey:k.month, imgMonth:0, codeMonth:0 };
+        saveUsersStore(store); res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true})); return;
+      }
+      if (action === 'adminToggleSuspend') {
+        if (!activeSession || !activeSession.isAdmin) { res.writeHead(403,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'ADMIN_REQUIRED'})); return; }
+        const u = (store.users||[]).find(x=>String(x.email||'').toLowerCase()===String(payload.targetEmail||'').trim().toLowerCase());
+        if (!u || isAdminUser(u)) { res.writeHead(400,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'Cannot suspend'})); return; }
+        u.suspended = !u.suspended; saveUsersStore(store); res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,suspended:u.suspended})); return;
+      }
+      if (action === 'adminToggleFreeTier') {
+        if (!activeSession || !activeSession.isAdmin) { res.writeHead(403,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'ADMIN_REQUIRED'})); return; }
+        store.freeTierEnabled = (store.freeTierEnabled === false) ? true : false;
+        saveUsersStore(store); res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,freeTierEnabled:store.freeTierEnabled})); return;
+      }
       if (action === 'getAuthStatus') {
         const isAdmin = Boolean(activeSession && activeSession.isAdmin);
         const safeUsers = isAdmin ? (store.users || []).map((u) => ({
@@ -4704,7 +4795,7 @@ export async function handleGeneralChatApi(req, res) {
             displayName: pending.displayName,
             initials: computeInitials(pending.displayName, email),
             avatarBg: palette[(store.users || []).length % palette.length],
-            planBadge: pending.planBadge || 'Pro',
+            planId: isAdminUser({email})?'max':'free', planBadge: isAdminUser({email})?'Max':'Free',
             roleTitle: pending.roleTitle || 'Team Member',
             authProvider: pending.authProvider || 'Private Email OTP',
             passwordHash: pending.passwordHash,
