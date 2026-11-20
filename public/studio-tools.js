@@ -402,6 +402,7 @@
 })();
 
 /* === MORPHIC_RESEARCH_UI_START === */
+;
 /* ============================================================================
  * PIXELMORPHIC AI — MORPHIC RESEARCH LAB PRO UI (v11.6 - Researcher Edition)
  * Fixes & Upgrades:
@@ -1837,7 +1838,39 @@
     th, td { border: 1px solid #cbd5e1; padding: 7px 9px; text-align: left; }
     th { background: #f1f5f9; font-weight: 700; }
     .src-box { margin-top: 24px; padding-top: 14px; border-top: 1px solid #cbd5e1; }
-  </style>
+  
+/* === PIXELMORPHIC v79.0 MOBILE RESPONSIVE RESEARCH LAB === */
+@media (max-width: 860px) {
+  #mr-dedicated-host-slot, #mr-dedicated-host-slot * { box-sizing: border-box; }
+  #mr-dedicated-host-slot [style*="width: 720px"],
+  #mr-dedicated-host-slot [style*="width:720px"],
+  #mr-dedicated-host-slot [style*="width: 440px"],
+  #mr-dedicated-host-slot [style*="width:440px"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .mr-shell, .mr-main, .mr-layout, .mr-grid, .mr-split {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+  .mr-drawer, .mr-sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    position: relative !important;
+  }
+  #mr-dedicated-host-slot button {
+    min-height: 44px;
+  }
+}
+@media (max-width: 540px) {
+  #mr-dedicated-host-slot { padding: 8px !important; }
+  .mr-composer, .mr-report-card { padding: 12px !important; }
+}
+
+</style>
 </head>
 <body>
   <div class="hdr">
@@ -2549,29 +2582,19 @@
       saveHistory();
     } catch (err) {
       if (state.wasCancelled || (err && err.name === 'AbortError')) return;
-      const demoSources = [
-        { title: 'QuantumScape Eagle Line & QSE-5 Solid-State Cell Progress (2026)', url: 'https://www.quantumscape.com/battery-technology/', domain: 'quantumscape.com', sourceTier: 'Primary Authority', trustScore: 95, snippet: 'Inaugurated Eagle Line in San Jose (Feb 2026) with Cobra separator process and QSE-5 cells (>800 Wh/L).' },
-        { title: 'Toyota Solid-State EV Battery Roadmap & Manufacturing Plan', url: 'https://global.toyota/en/newsroom/corporate/', domain: 'global.toyota', sourceTier: 'Primary Authority', trustScore: 96, snippet: 'Targeting 1,000–1,200 km range and 10-minute fast charging with pilot EV rollout in 2027–2028.' },
-        { title: 'ProLogium Mass Production of 381 Wh/kg All-Solid-State Battery & Dunkirk Factory', url: 'https://prologium.com/prologium-begins-mass-production-of-high-energy-density-all-solid-state-battery-reaching-381-wh-kg-and-903-wh-l/', domain: 'prologium.com', sourceTier: 'Primary Authority', trustScore: 94, snippet: 'TÜV Rheinland validated 381 Wh/kg (903 Wh/L) 185.4 Ah cells; broke ground on €5.2B Dunkirk gigafactory.' },
-        { title: 'Stellantis & Factorial Energy Validate 375–390 Wh/kg Solid-State EV Cells', url: 'https://www.stellantis.com/en/news/press-releases/2025/april/stellantis-and-factorial-energy-reach-key-milestone-in-solid-state-battery-development', domain: 'stellantis.com', sourceTier: 'Primary Authority', trustScore: 95, snippet: 'Integrated 375 Wh/kg FEST solid-state battery packs into Stellantis development vehicles in 2026.' },
-        { title: 'BloombergNEF Global Battery Price & Solid-State Commercialization Survey', url: 'https://about.bnef.com/blog/', domain: 'about.bnef.com', sourceTier: 'Industry Signal', trustScore: 97, snippet: 'Solid-state pilot production costs remain at $145–185/kWh vs $110–125/kWh for liquid NMC 811.' }
-      ];
-      const defaultReport = `1. **QuantumScape** inaugurated its automated Eagle Line in San Jose in 2026, integrating its Cobra ceramic separator process and shipping QSE-5 solid-state cells exceeding 800 Wh/L to Volkswagen's PowerCo [1].\n2. **ProLogium** achieved TÜV-certified mass production of 381 Wh/kg (903 Wh/L) ceramic solid-state cells while breaking ground on its €5.2B Dunkirk, France gigafactory [3].\n3. **Factorial Energy** and Stellantis integrated 375–390 Wh/kg lithium-metal solid-state cells into development EVs for 2026 road testing, alongside an SK On manufacturing partnership [4].\n4. **Toyota** advanced its sulfide all-solid-state battery durability with Sumitomo Metal Mining, targeting 1,000–1,200 km range and 10-minute fast charging for limited commercial rollout in 2027–2028 [2].\n5. **Commercialization & Cost Barrier**: Across all four leaders, interface stacking yields and $145–185/kWh pilot production costs remain the key hurdle before 2028–2030 mass-market parity with liquid lithium-ion [5].`;
-
-      const enforcedFallback = enforceClientOutputConstraints(defaultReport, detectedIntent);
-      const fallbackResult = {
+      const errMsg = (err && err.message) ? err.message : 'Unable to reach the research engine right now.';
+      state.currentResult = {
         query,
+        isError: true,
         isBranch: Boolean(state.parentBranchContext),
-        reportMarkdown: enforcedFallback,
-        sources: demoSources,
-        thinkingSteps: [
-          'Scanned 5 primary corporate & academic battery sources',
-          detectedIntent ? `Enforced exact output constraint (${detectedIntent.unit})` : 'Synthesized research report'
-        ]
+        reportMarkdown: `### Research Request Could Not Complete
+
+**Reason:** ${errMsg}
+
+Please check your connection or retry in a few seconds. No placeholder report was saved to your history.`,
+        sources: [],
+        thinkingSteps: ['Request interrupted — ready to retry cleanly']
       };
-      state.currentResult = fallbackResult;
-      state.history.unshift(fallbackResult);
-      saveHistory();
     } finally {
       clearInterval(state.stepTimer);
       clearInterval(state.elapsedTimer);
@@ -2841,7 +2864,7 @@
     bdEl.id = 'mr-drawer-backdrop';
     document.body.appendChild(bdEl);
 
-    const drEl = document.createElement('aside');
+    const drEl = document.createElement('div');
     drEl.className = 'mr-drawer';
     drEl.id = 'mr-slide-drawer';
     drEl.innerHTML = `
@@ -2943,7 +2966,7 @@
   function checkAndMount() {
     const hash = (window.location.hash || '').toLowerCase();
     const hostResHeading = Array.from(document.querySelectorAll('h1, h2')).some((h) => /Research with evidence/i.test(h.textContent || ''));
-    const isResearchRoute = hash.includes('business') || hash.includes('research') || hostResHeading;
+    const isResearchRoute = hash.includes('business') || hash.includes('research');
     const w = document.getElementById('mr-sidebar-widget');
     if (w) w.style.display = isResearchRoute ? 'block' : 'none';
     if (isResearchRoute) updateSidebarHistoryAndStatus();
@@ -3010,12 +3033,9 @@
   window.addEventListener('hashchange', () => setTimeout(checkAndMount, 60));
   window.addEventListener('DOMContentLoaded', () => setTimeout(checkAndMount, 80));
   setTimeout(checkAndMount, 100);
-  setInterval(checkAndMount, 1200);
+  setInterval(checkAndMount, 3500);
 })();
-
-/* === MORPHIC_RESEARCH_UI_END === */
-
-/* === MORPHIC_GENERAL_CHAT_UI_START === */
+;
 /* ============================================================================
  * PIXELMORPHIC AI — GENERAL CHAT, IMAGE STUDIO & LIBRARY UI (v14.0)
  * Root-Level Fixes:
@@ -3029,6 +3049,68 @@
  *     appears only when typing an image prompt or in Image Studio).
  * ============================================================================ */
 (function () {
+
+  // === PIXELMORPHIC v80.0 CUSTOMER-READY DEV/TRIAL UI SCRUBBER ===
+  (function scrubDevClutter() {
+    const run = () => {
+      document.querySelectorAll('header span, header div, header button, header a, .topbar span, .topbar div, .badge, .pill').forEach((el) => {
+        if (el.children.length > 1) return;
+        const txt = (el.textContent || '').trim();
+        if (/^(API configured|API not configured|Local test|Local workspace|Demo mode|Trial|Samurai)$/i.test(txt)) {
+          el.style.setProperty('display', 'none', 'important');
+        }
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+    setTimeout(run, 400);
+    setTimeout(run, 1600);
+  })();
+
+
+  // === PIXELMORPHIC v79.0 AUTO-AUTH + MULTI-DEVICE RESILIENT FETCH ===
+  if (typeof window !== 'undefined' && typeof window.fetch === 'function' && !window.__pmV79FetchWrapped) {
+    window.__pmV79FetchWrapped = true;
+    const __origFetch = window.fetch.bind(window);
+    window.fetch = async function (input, init) {
+      const urlStr = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+      const isPmApi = /\/api\/(general-chat|morphic-storage|research|verified-research)/i.test(urlStr);
+      if (!isPmApi) return __origFetch(input, init);
+
+      const opts = Object.assign({}, init || {});
+      const headers = new Headers(opts.headers || (typeof input !== 'string' && input && input.headers ? input.headers : undefined));
+      try {
+        const saved = JSON.parse(localStorage.getItem('morphic_auth_session_v62') || 'null');
+        if (saved && saved.token && !headers.has('Authorization')) {
+          headers.set('Authorization', 'Bearer ' + saved.token);
+        }
+      } catch (_) {}
+      opts.headers = headers;
+
+      const maxAttempts = 3;
+      let lastErr = null;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const resp = await __origFetch(input, opts);
+          if ([429, 502, 503, 504].includes(resp.status) && attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, attempt * 1400));
+            continue;
+          }
+          return resp;
+        } catch (err) {
+          if (err && err.name === 'AbortError') throw err;
+          lastErr = err;
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, attempt * 1400));
+            continue;
+          }
+          throw lastErr;
+        }
+      }
+      throw lastErr;
+    };
+  }
+
   if (window.__morphicGeneralChatV61Loaded) return;
   window.__morphicGeneralChatV61Loaded = true;
   try {
@@ -3046,7 +3128,7 @@
 
   const state = {
     activeView: 'chat', // 'chat' | 'images' | 'library'
-    sidebarCollapsed: (typeof window !== 'undefined' && window.innerWidth <= 860),
+    sidebarCollapsed: (typeof window !== 'undefined' && (window.innerWidth <= 860)),
     chatModel: 'morphic-chat-pro',
     webSearch: true,
     userLocation: { city: '', region: '', country: 'India', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata' },
@@ -6864,13 +6946,13 @@
   const USER_SETTINGS_KEY = 'pm_user_settings_v53';
 
   const defaultUserSettings = {
-    displayName: 'Pixelmorphic User',
+    displayName: 'Pixelmorphic Member',
     initials: 'PM',
     avatarBg: 'linear-gradient(135deg, #ea580c 0%, #d97706 100%)',
-    planBadge: 'Plus · Founder Ultra',
-    roleTitle: 'Founder & AI Architect · Metamorphic Pixel',
-    email: 'harsh@pixelmorphic.ai',
-    locationCity: 'Jhansi, Uttar Pradesh, India',
+    planBadge: 'Pro',
+    roleTitle: 'Workspace Member',
+    email: '',
+    locationCity: '',
     // Appearance & Custom UI Features
     themeMode: 'iron', // 'iron' | 'emerald' | 'dark' | 'cyber' | 'light' | 'oled'
     accentColor: '#10b981',
@@ -6880,17 +6962,13 @@
     showScrollButtons: true,
     autoReadAloud: false,
     // Personalization
-    customAbout: 'Owner & founder of Pixelmorphic AI and Metamorphic Pixel Studios. Builds full-stack AI web platforms, generative media, and competitive exam study tools.',
+    customAbout: '',
     customStyle: 'Provide clear, structured, step-by-step explanations with high factual accuracy and practical code or examples.',
     tone: 'balanced', // 'balanced' | 'friendly' | 'concise' | 'academic'
     preferredLang: 'en',
     // Saved Memory
     memoryEnabled: true,
-    memories: [
-      { id: 'm1', text: 'Founder and owner of Pixelmorphic AI & Metamorphic Pixel Studios.', createdAt: '2026-11-12' },
-      { id: 'm2', text: 'Develops full-stack Node.js web applications on Windows 11 using PowerShell.', createdAt: '2026-11-12' },
-      { id: 'm3', text: 'Builds educational & competitive exam content under Exam Saathi / Study Workspace.', createdAt: '2026-11-12' }
-    ],
+    memories: [],
     // Security
     pinLockEnabled: false,
     pinCode: '',
@@ -7664,19 +7742,21 @@
         pointer-events: none !important;
       }
 
-      /* Desktop Sidebar Collapse Support */
-      html body.mc-sidebar-collapsed aside:not([id*="lightbox"]),
-      html body.mc-sidebar-collapsed .sidebar:not(body),
-      html body.mc-sidebar-collapsed .demo-sidebar:not(body) {
-        width: 0px !important;
-        min-width: 0px !important;
-        max-width: 0px !important;
-        margin-left: -300px !important;
-        padding: 0 !important;
-        opacity: 0 !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-        border: none !important;
+      /* Desktop Sidebar Collapse Support — display:none removes aside from Grid Row 1 so main stays at top:0! */
+      @media (min-width: 861px) {
+        html body.mc-sidebar-collapsed aside:not([id*="lightbox"]),
+        html body.mc-sidebar-collapsed .sidebar:not(body),
+        html body.mc-sidebar-collapsed .demo-sidebar:not(body) {
+          display: none !important;
+          width: 0px !important;
+          min-width: 0px !important;
+          max-width: 0px !important;
+          padding: 0 !important;
+          opacity: 0 !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          border: none !important;
+        }
       }
       html body.mc-sidebar-collapsed main,
       html body.mc-sidebar-collapsed .main-content,
@@ -8065,6 +8145,19 @@
         html body .mc-theme-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
           gap: 8px !important;
+        }
+        html body .mc-modal-panel,
+        html body .mr-modal-card {
+          width: 95vw !important;
+          max-width: 95vw !important;
+          max-height: 88dvh !important;
+          padding: 14px 12px !important;
+          overflow-y: auto !important;
+          box-sizing: border-box !important;
+        }
+        html body #mr-slide-drawer.mr-drawer {
+          width: 88vw !important;
+          max-width: 340px !important;
         }
         html body #mc-scroll-jump-dock {
           display: none !important;
@@ -8834,8 +8927,8 @@
       {
         email: prof.email || prof.emailHandle || 'harsh@pixelmorphic.com',
         displayName: prof.displayName || 'Harsh Saxena',
-        roleTitle: prof.roleTitle || 'Founder Ultra',
-        planBadge: prof.planBadge || 'Founder',
+        roleTitle: prof.roleTitle || 'Workspace Member',
+        planBadge: prof.planBadge || 'Pro',
         initials: prof.initials || 'HS',
         avatarBg: prof.avatarBg || 'linear-gradient(135deg, #f43f5e, #e11d48)'
       }
@@ -10018,10 +10111,9 @@
           configuredSmtpEmail = info.smtpUser || '';
           const badgeEl = overlay.querySelector('#mc-v65-smtp-status-pill');
           if (badgeEl) {
-            badgeEl.innerHTML = smtpConfiguredOnServer
-              ? `🟢 Real Email OTP Active (${esc(configuredSmtpEmail)}) · <span style="text-decoration:underline;cursor:pointer;">Edit</span>`
-              : `⚙️ Connect Gmail OTP Sender (1-Time Setup for Real Inbox Emails)`;
-            badgeEl.style.color = smtpConfiguredOnServer ? '#6ee7b7' : '#fde68a';
+            badgeEl.textContent = '🔒 Secured by Pixelmorphic AI · Private 6-Digit Email Verification';
+            badgeEl.style.color = '#6ee7b7';
+            badgeEl.style.cursor = 'default';
           }
         }
       })
@@ -10371,9 +10463,8 @@
               </div>
             ` : `
               <div style="margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(245,158,11,0.14);border:1px solid rgba(251,191,36,0.45);font-size:12px;color:#fde68a;line-height:1.55;">
-                <div style="font-weight:800;margin-bottom:4px;">⚠️ Real Gmail Sender Not Connected Yet (${esc(smtpErrorReason || 'SMTP_NOT_CONFIGURED')})</div>
-                <div style="color:#fef3c7;">For security, the OTP is <strong>hidden from this screen</strong> and printed only in the Founder's <strong>Windows PowerShell terminal</strong>. To receive OTPs inside real Gmail inboxes, click below:</div>
-                <button type="button" id="mc-otp-open-smtp-wiz" style="margin-top:8px;padding:6px 11px;border-radius:8px;border:1px solid #fbbf24;background:rgba(245,158,11,0.25);color:#fff;font-size:11.5px;font-weight:800;cursor:pointer;">📧 Connect Gmail App Password Now (30s Setup) →</button>
+                <div style="font-weight:700;margin-bottom:4px;">Verification code could not be sent right now</div>
+                <div style="color:#fef3c7;">Please check your email address and click <strong>Resend 6-Digit Code</strong> below to try again.</div>
               </div>
             `}
 
@@ -10483,10 +10574,7 @@
             </button>
 
             <div style="margin-top:6px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;font-size:11px;">
-              <button type="button" id="mc-v65-smtp-status-pill" style="background:transparent;border:none;color:${smtpConfiguredOnServer ? '#6ee7b7' : '#fde68a'};font-size:11.5px;font-weight:700;cursor:pointer;padding:0;text-align:left;">
-                ${smtpConfiguredOnServer
-                  ? `🟢 Real Email OTP Active (${esc(configuredSmtpEmail)}) · <span style="text-decoration:underline;">Edit</span>`
-                  : `⚙️ Connect Gmail OTP Sender (1-Time Setup for Real Inbox Emails)`}
+              <button type="button" id="mc-v65-smtp-status-pill" style="background:transparent;border:none;color:🔒 Secured by Pixelmorphic AI · Private 6-Digit Email Verification
               </button>
             </div>
           </div>
@@ -10839,7 +10927,7 @@
         currentStep = 'google-chooser';
         renderAuthModal();
       });
-      overlay.querySelector('#mc-v65-smtp-status-pill')?.addEventListener('click', () => {
+      overlay.querySelector('#mc-v65-smtp-status-pill')?.addEventListener('click', (e) => { e.preventDefault(); return;
         currentStep = 'smtp-setup';
         renderAuthModal();
       });
@@ -10913,6 +11001,7 @@
     const navTabs = [
       { id: 'profile', icon: '👤', label: 'Profile' },
       { id: 'appearance', icon: '🎨', label: 'UI Color & Appearance' },
+      { id: 'language', icon: '🌐', label: 'Site Language' },
       { id: 'personalization', icon: '🧠', label: 'Personalization' },
       { id: 'memory', icon: '💾', label: 'Saved Memory' },
       { id: 'billing', icon: '💳', label: 'Billing & Plan' },
@@ -10971,6 +11060,34 @@
           </div>
           <div style="display:flex;justify-content:flex-end;">
             <button type="button" class="mc-pill-btn active" id="mc-save-prof-btn" style="padding:9px 20px;">💾 Save Profile Changes</button>
+          </div>
+        `;
+      } else if (activeTab === 'language') {
+        const curLang = (window.__pmGetSiteLang ? window.__pmGetSiteLang() : 'en');
+        const langOpts = [
+          { code: 'en', flag: '🌐', name: 'English', sub: 'Default Language' },
+          { code: 'hi', flag: '🇮🇳', name: 'हिन्दी', sub: 'Hindi' },
+          { code: 'ta', flag: '🇮🇳', name: 'தமிழ்', sub: 'Tamil' },
+          { code: 'bn', flag: '🇮🇳', name: 'বাংলা', sub: 'Bengali' },
+          { code: 'zh', flag: '🇨🇳', name: '中文 (简体)', sub: 'Mandarin Chinese' },
+          { code: 'ja', flag: '🇯🇵', name: '日本語', sub: 'Japanese' }
+        ];
+        rightHtml = `
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h2 style="margin:0;font-size:20px;font-weight:800;">🌐 Site Language</h2>
+            <button type="button" class="mc-calc-act-key" id="mc-set-close-x">✕ Close</button>
+          </div>
+          <div class="mc-set-card">
+            <label class="mc-set-label">Select Display Language (English is default for all new visitors)</label>
+            <div class="mc-theme-grid">
+              ${langOpts.map(l => `
+                <div class="mc-theme-card ${curLang === l.code ? 'active' : ''}" data-set-lang="${l.code}" style="cursor:pointer;">
+                  <div style="font-size:22px;margin-bottom:4px;">${l.flag}</div>
+                  <div style="font-weight:700;">${l.name}</div>
+                  <div style="font-size:11px;opacity:0.75;font-weight:400;">${l.sub}</div>
+                </div>
+              `).join('')}
+            </div>
           </div>
         `;
       } else if (activeTab === 'appearance') {
@@ -11101,11 +11218,7 @@
             </div>
             <div>
               <label class="mc-set-label">Preferred Language</label>
-              <select class="mc-set-select" id="mc-pers-lang">
-                <option value="en" ${cfg.preferredLang === 'en' ? 'selected' : ''}>🌐 English</option>
-                <option value="hinglish" ${cfg.preferredLang === 'hinglish' ? 'selected' : ''}>🇮🇳 Hinglish (Hindi + English)</option>
-                <option value="hi" ${cfg.preferredLang === 'hi' ? 'selected' : ''}>🇮🇳 Hindi (देवनागरी)</option>
-              </select>
+              <select class="mc-set-select" id="mc-pers-lang"><option value="en" ${(cfg.preferredLang||"en")==="en"?"selected":""}>English (Default)</option><option value="hi" ${cfg.preferredLang==="hi"?"selected":""}>हिन्दी (Hindi)</option><option value="ta" ${cfg.preferredLang==="ta"?"selected":""}>தமிழ் (Tamil)</option><option value="bn" ${cfg.preferredLang==="bn"?"selected":""}>বাংলা (Bengali)</option><option value="zh" ${cfg.preferredLang==="zh"?"selected":""}>中文 (Mandarin)</option><option value="ja" ${cfg.preferredLang==="ja"?"selected":""}>日本語 (Japanese)</option><option value="hinglish" ${cfg.preferredLang==="hinglish"?"selected":""}>Hinglish</option></select>
             </div>
           </div>
           <div style="display:flex;justify-content:flex-end;">
@@ -11129,7 +11242,7 @@
           <div class="mc-set-card">
             <label class="mc-set-label">Add a New Memory</label>
             <div style="display:flex;gap:8px;">
-              <input type="text" class="mc-set-input" id="mc-new-mem-inp" placeholder="e.g. Always include PowerShell commands for Windows 11...">
+              <input type="text" class="mc-set-input" id="mc-new-mem-inp" placeholder="e.g. Keep explanations concise with clear bullet points...">
               <button type="button" class="mc-pill-btn active" id="mc-add-mem-btn" style="white-space:nowrap;">+ Add Memory</button>
             </div>
           </div>
@@ -11157,7 +11270,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
               <div>
                 <span style="font-size:10.5px;font-weight:800;letter-spacing:0.08em;color:#6ee7b7;text-transform:uppercase;">CURRENT ACTIVE PLAN</span>
-                <div style="font-size:20px;font-weight:800;color:#ffffff;margin-top:2px;">✨ Pixelmorphic Founder Ultra Pro</div>
+                <div style="font-size:20px;font-weight:800;color:#ffffff;margin-top:2px;">Pixelmorphic AI Pro</div>
                 <div style="font-size:12px;color:#d1fae5;margin-top:3px;">Unlimited Morphic Ultra, Pro &amp; Fast · 8K Image &amp; eBook Studio · Full-Stack Code IDE · Multi-PDF Study Notebook</div>
               </div>
               <span style="background:#10b981;color:#042f1e;font-weight:800;font-size:12px;padding:6px 14px;border-radius:999px;">ACTIVE · LIFETIME</span>
@@ -11208,29 +11321,13 @@
           </div>
 
           <div class="mc-set-card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
               <div>
-                <div style="font-size:13.5px;font-weight:700;">📧 Optional Gmail SMTP (Real Email Inbox OTP Delivery)</div>
-                <div style="font-size:11.5px;color:#94a3b8;">Leave empty for Instant On-Screen + PowerShell 6-Digit OTP, or add a Gmail &amp; 16-char Google App Password</div>
+                <div style="font-size:13.5px;font-weight:700;">Private Email Verification</div>
+                <div style="font-size:11.5px;color:#94a3b8;">Protected with 6-digit OTP verification via Pixelmorphic AI</div>
               </div>
-              <span id="mc-smtp-badge" style="font-size:11px;padding:4px 9px;border-radius:999px;background:rgba(16,185,129,0.18);color:#6ee7b7;font-weight:700;">⚡ Instant + Console OTP</span>
+              <span style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(16,185,129,0.18);color:#6ee7b7;font-weight:700;">Active</span>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <input type="email" class="mc-set-input" id="mc-smtp-user-input" placeholder="Sender Gmail (e.g. harsh@gmail.com)" />
-              <input type="password" class="mc-set-input" id="mc-smtp-pass-input" placeholder="16-char Gmail App Password (optional)" />
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-              <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#cbd5e1;cursor:pointer;">
-                <input type="checkbox" id="mc-require-auth-startup" style="width:16px;height:16px;accent-color:#10b981;" />
-                <span>Require Google + 6-Digit OTP Sign-In on Workspace Startup</span>
-              </label>
-              <button type="button" class="mc-pill-btn active" id="mc-save-smtp-btn">💾 Save OTP &amp; SMTP Config</button>
-            </div>
-          </div>
-
-          <div class="mc-set-card">
-            <div style="font-size:13px;font-weight:700;margin-bottom:6px;">👥 Registered Workspace Users (<span id="mc-reg-users-count">1</span>)</div>
-            <div id="mc-reg-users-list" style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#cbd5e1;">Loading registered accounts...</div>
           </div>
 
           <div class="mc-set-card" style="border-color:rgba(239,68,68,0.35);">
@@ -11292,6 +11389,15 @@
         renderModalContent();
       });
 
+      // Site Language bindings
+      backdrop.querySelectorAll('[data-set-lang]').forEach((card) => {
+        card.onclick = () => {
+          const code = card.getAttribute('data-set-lang') || 'en';
+          if (window.__pmSetSiteLang) window.__pmSetSiteLang(code);
+          renderModalContent();
+          if (typeof showDownloadToast === 'function') showDownloadToast('🌐 Language updated');
+        };
+      });
       // Appearance bindings
       backdrop.querySelectorAll('[data-set-theme]').forEach((card) => {
         card.onclick = () => {
@@ -11330,6 +11436,7 @@
         cfg.customStyle = document.getElementById('mc-pers-style')?.value.trim() || '';
         cfg.tone = document.getElementById('mc-pers-tone')?.value || 'balanced';
         cfg.preferredLang = document.getElementById('mc-pers-lang')?.value || 'en';
+if(window.__pmSetSiteLang)window.__pmSetSiteLang(cfg.preferredLang==='hinglish'?'en':cfg.preferredLang);
         saveUserSettings();
         showDownloadToast('🧠 Personalization instructions saved!');
       });
@@ -12503,7 +12610,7 @@
     </svg>
     <div class="cover-fg">
       <div style="width:100%;display:flex;flex-direction:column;align-items:center;">
-        <div class="cover-kicker">PIXELMORPHIC ASTRA &amp; ARGON PUBLISHING STUDIO</div>
+        <div class="cover-kicker">PIXELMORPHIC AI PUBLISHING STUDIO</div>
         <h1 class="cover-main-title">${esc(eb.title)}</h1>
         <div class="cover-subtitle">${esc(eb.subtitle || '')}</div>
       </div>
@@ -16001,6 +16108,8 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
                 <option value="3:4" ${state.imageAspect === '3:4' ? 'selected' : ''}>3:4 Portrait (Default)</option>
                 <option value="16:9" ${state.imageAspect === '16:9' ? 'selected' : ''}>16:9 Landscape</option>
                 <option value="1:1" ${state.imageAspect === '1:1' ? 'selected' : ''}>1:1 Square</option>
+                <option value="9:16" ${state.imageAspect === '9:16' ? 'selected' : ''}>9:16 Vertical (Phone)</option>
+                <option value="4:3" ${state.imageAspect === '4:3' ? 'selected' : ''}>4:3 Classic</option>
               </select>
             </div>
 
@@ -16343,7 +16452,7 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
       fab.className = 'mc-sidebar-open-fab';
       fab.type = 'button';
       fab.title = 'Open sidebar';
-      fab.innerHTML = '<span style="font-size:16px;line-height:1;">☰</span> <span>Open sidebar</span>';
+      fab.innerHTML = '<span style="font-size:15px;line-height:1;">☰</span> <span>' + (window.innerWidth <= 860 ? 'Menu' : 'Open sidebar') + '</span>';
       fab.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -16892,11 +17001,543 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     }, 40);
   });
   setTimeout(() => {
+    if (window.innerWidth <= 860) {
+      toggleSidebarCollapse(true);
+    }
     checkAndMountMainView(false);
     loadFromServerDisk();
-      detectUserLocationClient();
+    detectUserLocationClient();
   }, 120);
-  setInterval(() => checkAndMountMainView(false), 1200);
+  setInterval(() => checkAndMountMainView(false), 3500);
+
+  /* === v81.0 MOBILE-FIRST CLEAN UI OVERHAUL (<= 860px only, desktop untouched) === */
+  (function injectV81MobileCleanCss() {
+    if (typeof document === 'undefined' || document.getElementById('pm-v81-mobile-clean-css')) return;
+    const s = document.createElement('style');
+    s.id = 'pm-v81-mobile-clean-css';
+    s.textContent = `
+      @media (max-width: 860px) {
+        html, body {
+          width: 100% !important;
+          max-width: 100vw !important;
+          overflow-x: hidden !important;
+          -webkit-text-size-adjust: 100% !important;
+        }
+        /* 1. Single Clean Mobile Top Bar (eliminate double header & right-edge clipping) */
+        html body [data-pm-host-header="1"],
+        html body > header,
+        html body .topbar,
+        html body .demo-topbar {
+          display: none !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          overflow: hidden !important;
+        }
+        html body #mc-sidebar-open-fab.mc-sidebar-open-fab {
+          position: fixed !important;
+          top: 10px !important;
+          left: 10px !important;
+          z-index: 100045 !important;
+          height: 36px !important;
+          min-width: 36px !important;
+          padding: 0 11px !important;
+          border-radius: 10px !important;
+          font-size: 13px !important;
+          font-weight: 700 !important;
+          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28) !important;
+        }
+        html body main,
+        html body .main-content,
+        html body .content {
+          padding: 0 !important;
+          margin: 0 !important;
+          width: 100% !important;
+          max-width: 100vw !important;
+        }
+        html body #mc-shell-root.mc-shell,
+        html body #mr-shell-root.mr-shell {
+          padding: 0 10px 14px 10px !important;
+          min-height: 100dvh !important;
+          width: 100% !important;
+          max-width: 100vw !important;
+          box-sizing: border-box !important;
+        }
+        html body #mc-shell-root .mc-topbar,
+        html body #mr-shell-root .mr-topbar {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 100020 !important;
+          height: 56px !important;
+          min-height: 56px !important;
+          padding: 8px 10px 8px 92px !important;
+          margin: 0 -10px 10px -10px !important;
+          width: calc(100% + 20px) !important;
+          max-width: 100vw !important;
+          border-radius: 0 !important;
+          border-left: none !important;
+          border-right: none !important;
+          backdrop-filter: blur(12px) !important;
+          gap: 8px !important;
+        }
+        html body #mc-shell-root .mc-title,
+        html body #mr-shell-root .mr-brand-title {
+          font-size: 15.5px !important;
+          font-weight: 800 !important;
+          max-width: 155px !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+        html body #mc-shell-root #mc-new-chat-btn,
+        html body #mr-shell-root #mr-new-research-btn {
+          height: 34px !important;
+          padding: 0 12px !important;
+          font-size: 12px !important;
+          border-radius: 10px !important;
+          flex-shrink: 0 !important;
+        }
+        /* 2. Clean Auth / Sign-In Portal (Sign-In card first, hide heavy marketing wall) */
+        .mc-v64-portal-grid {
+          display: flex !important;
+          flex-direction: column !important;
+          min-height: 100dvh !important;
+          padding: 0 !important;
+        }
+        .mc-v64-brand-pane {
+          padding: 18px 16px 14px 16px !important;
+          border-right: none !important;
+          border-bottom: 1px solid rgba(52, 211, 153, 0.18) !important;
+        }
+        .mc-v64-logo-row {
+          margin-bottom: 10px !important;
+        }
+        .mc-v64-hero-title {
+          font-size: 22px !important;
+          margin-bottom: 6px !important;
+        }
+        .mc-v64-hero-sub {
+          font-size: 13px !important;
+          margin-bottom: 0 !important;
+        }
+        .mc-v64-feat-grid,
+        .mc-v64-brand-footer,
+        .mc-v64-founder-pill {
+          display: none !important;
+        }
+        .mc-v64-auth-pane {
+          padding: 18px 14px 28px 14px !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        /* 3. Declutter Home Screen Hero & Studio Cards */
+        .mc-v66-slide-stage {
+          padding: 14px !important;
+          gap: 12px !important;
+          border-radius: 16px !important;
+          margin-bottom: 10px !important;
+        }
+        .mc-v66-slide-art {
+          display: none !important;
+        }
+        .mc-v66-slide-title {
+          font-size: 18px !important;
+          margin-bottom: 6px !important;
+        }
+        .mc-v66-slide-sub {
+          font-size: 12.5px !important;
+          margin-bottom: 12px !important;
+        }
+        .mc-v66-studio-cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 8px !important;
+        }
+        .mc-v66-scard {
+          padding: 11px 12px !important;
+          border-radius: 13px !important;
+        }
+        /* 4. Sleek Composer: Single-row horizontal swipeable controls, zero clutter */
+        html body #mc-shell-root #mc-composer-box.mc-composer,
+        html body #mr-shell-root #mr-composer-box.mr-composer {
+          padding: 10px 10px 9px 10px !important;
+          border-radius: 16px !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        html body #mc-shell-root .mc-controls-left,
+        html body #mr-shell-root .mr-controls-left {
+          flex-wrap: nowrap !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          scrollbar-width: none !important;
+          padding-bottom: 2px !important;
+          gap: 6px !important;
+        }
+        html body #mc-shell-root .mc-controls-left::-webkit-scrollbar,
+        html body #mr-shell-root .mr-controls-left::-webkit-scrollbar {
+          display: none !important;
+        }
+        html body #mc-shell-root .mc-controls-left > *,
+        html body #mr-shell-root .mr-controls-left > * {
+          flex-shrink: 0 !important;
+        }
+        /* 5. Prevent Half-Cut Messages, Tables, Code Blocks & Modals */
+        .mc-msg, .mc-bubble, .mc-answer-card, .mc-card {
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        .mc-msg pre, .mc-bubble pre, .mc-msg table, .mc-bubble table {
+          max-width: 100% !important;
+          overflow-x: auto !important;
+          display: block !important;
+        }
+        [role="dialog"], .mc-modal-card, .mc-settings-modal, .mc-modal-panel {
+          width: calc(100vw - 20px) !important;
+          max-width: calc(100vw - 20px) !important;
+          max-height: 88dvh !important;
+          overflow-y: auto !important;
+          margin: 10px auto !important;
+          border-radius: 16px !important;
+          box-sizing: border-box !important;
+        }
+      }
+    `;
+    (document.head || document.documentElement).appendChild(s);
+  })();
+
+  /* === v82.0 IMAGE STUDIO FRAMING FIX + MULTI-LANGUAGE SITE SWITCHER (EN DEFAULT) === */
+  (function initV82ImageAndI18n() {
+    if (typeof document === 'undefined' || document.getElementById('pm-v82-style')) return;
+    const st = document.createElement('style');
+    st.id = 'pm-v82-style';
+    st.textContent = `
+      .mc-image-crop-frame {
+        min-height: 220px !important;
+        max-height: 560px !important;
+        height: auto !important;
+        background: #071c12 !important;
+      }
+      .mc-image-crop-frame img {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: 540px !important;
+        object-fit: contain !important;
+      }
+      .mc-lib-thumb-wrap {
+        height: 240px !important;
+        background: #081c14 !important;
+      }
+      .mc-lib-thumb {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        padding: 4px !important;
+      }
+      #pm-lang-switcher {
+        position: fixed;
+        top: 10px;
+        right: 12px;
+        z-index: 100046;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(52, 211, 153, 0.45);
+        background: rgba(6, 26, 18, 0.92);
+        color: #ecfdf5;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        outline: none;
+      }
+      #pm-lang-switcher option {
+        background: #071b14;
+        color: #ecfdf5;
+      }
+      @media (max-width: 860px) {
+        #pm-lang-switcher {
+          top: 11px;
+          right: 108px;
+          height: 34px;
+          max-width: 104px;
+          font-size: 11.5px;
+          padding: 0 6px;
+        }
+      }
+    `;
+    (document.head || document.documentElement).appendChild(st);
+    const DICT = {
+      en: {
+        'New Chat': 'New Chat', 'Image Studio': 'Image Studio', 'Library': 'Library',
+        'Code Studio': 'Code Studio', 'Study': 'Study', 'Settings': 'Settings',
+        'Sign In': 'Sign In', 'Sign Out': 'Sign Out', 'Menu': 'Menu',
+        'Standard': 'Standard', 'HD': 'HD', 'Preview': 'Preview', 'Download': 'Download',
+        'General Chat': 'General Chat', 'Research Lab': 'Research Lab',
+        'Send': 'Send', 'Generate': 'Generate',
+        '_ph_chat': 'Ask Pixelmorphic AI anything...',
+        '_ph_img': 'Describe the exact image, scene, style, and framing you want...'
+      },
+      hi: {
+        'New Chat': 'नई चैट', 'Image Studio': 'इमेज स्टूडियो', 'Library': 'लाइब्रेरी',
+        'Code Studio': 'कोड स्टूडियो', 'Study': 'स्टडी', 'Settings': 'सेटिंग्स',
+        'Sign In': 'साइन इन', 'Sign Out': 'साइन आउट', 'Menu': 'मेनू',
+        'Standard': 'स्टैंडर्ड', 'HD': 'एचडी (HD)', 'Preview': 'प्रीव्यू', 'Download': 'डाउनलोड',
+        'General Chat': 'जनरल चैट', 'Research Lab': 'रिसर्च लैब',
+        'Send': 'भेजें', 'Generate': 'बनाएं',
+        '_ph_chat': 'Pixelmorphic AI से कुछ भी पूछें...',
+        '_ph_img': 'आप जैसी इमेज बनाना चाहते हैं उसका पूरा विवरण लिखें...'
+      },
+      ta: {
+        'New Chat': 'புதிய அரட்டை', 'Image Studio': 'பட ஸ்டுடியோ', 'Library': 'நூலகம்',
+        'Code Studio': 'கோட் ஸ்டுடியோ', 'Study': 'படிப்பு', 'Settings': 'அமைப்புகள்',
+        'Sign In': 'உள்நுழைக', 'Sign Out': 'வெளியேறு', 'Menu': 'பட்டியல்',
+        'Standard': 'நிலையானது', 'HD': 'HD', 'Preview': 'முன்னோட்டம்', 'Download': 'பதிவிறக்கு',
+        'General Chat': 'பொது அரட்டை', 'Research Lab': 'ஆராய்ச்சி ஆய்வகம்',
+        'Send': 'அனுப்பு', 'Generate': 'உருவாக்கு',
+        '_ph_chat': 'Pixelmorphic AI-யிடம் எதுவும் கேளுங்கள்...',
+        '_ph_img': 'நீங்கள் உருவாக்க விரும்பும் படத்தை விவரிக்கவும்...'
+      },
+      bn: {
+        'New Chat': 'নতুন চ্যাট', 'Image Studio': 'ইমেজ স্টুডিও', 'Library': 'লাইব্রেরি',
+        'Code Studio': 'কোড স্টুডিও', 'Study': 'স্টাডি', 'Settings': 'সেটিংস',
+        'Sign In': 'সাইন ইন', 'Sign Out': 'সাইন আউট', 'Menu': 'মেনু',
+        'Standard': 'স্ট্যান্ডার্ড', 'HD': 'HD', 'Preview': 'প্রিভিউ', 'Download': 'ডাউনলোড',
+        'General Chat': 'জেনারেল চ্যাট', 'Research Lab': 'রিসার্চ ল্যাব',
+        'Send': 'পাঠান', 'Generate': 'তৈরি করুন',
+        '_ph_chat': 'Pixelmorphic AI-কে যা খুশি জিজ্ঞাসা করুন...',
+        '_ph_img': 'আপনি যেমন ছবি তৈরি করতে চান তা বিস্তারিত লিখুন...'
+      },
+      zh: {
+        'New Chat': '新对话', 'Image Studio': '图像工作室', 'Library': '素材库',
+        'Code Studio': '代码工作室', 'Study': '学习空间', 'Settings': '设置',
+        'Sign In': '登录', 'Sign Out': '退出登录', 'Menu': '菜单',
+        'Standard': '标准', 'HD': '高清 HD', 'Preview': '预览', 'Download': '下载',
+        'General Chat': '智能对话', 'Research Lab': '研究实验室',
+        'Send': '发送', 'Generate': '生成',
+        '_ph_chat': '向 Pixelmorphic AI 提问任何问题...',
+        '_ph_img': '详细描述你想生成的图像、构图和风格...'
+      },
+      ja: {
+        'New Chat': '新しいチャット', 'Image Studio': '画像スタジオ', 'Library': 'ライブラリ',
+        'Code Studio': 'コードスタジオ', 'Study': '学習', 'Settings': '設定',
+        'Sign In': 'サインイン', 'Sign Out': 'サインアウト', 'Menu': 'メニュー',
+        'Standard': '標準', 'HD': '高画質 HD', 'Preview': 'プレビュー', 'Download': 'ダウンロード',
+        'General Chat': '一般チャット', 'Research Lab': 'リサーチラボ',
+        'Send': '送信', 'Generate': '生成',
+        '_ph_chat': 'Pixelmorphic AI に何でも質問してください...',
+        '_ph_img': '作成したい画像の内容・構図・スタイルを入力してください...'
+      }
+    };
+    const REVERSE_MAP = {};
+    Object.values(DICT).forEach((tbl) => {
+      Object.entries(tbl).forEach(([k, v]) => {
+        if (!k.startsWith('_')) REVERSE_MAP[v] = k;
+      });
+    });
+    const getLang = () => {
+      try {
+        const saved = localStorage.getItem('pm_site_lang');
+        return saved && DICT[saved] ? saved : 'en';
+      } catch (_) { return 'en'; }
+    };
+    const applyLang = (langCode) => {
+      const lang = DICT[langCode] ? langCode : 'en';
+      const tbl = DICT[lang];
+      document.documentElement.lang = lang;
+      const chatInput = document.getElementById('mc-chat-input');
+      if (chatInput && tbl._ph_chat) chatInput.placeholder = tbl._ph_chat;
+      const imgInput = document.getElementById('mc-img-studio-input');
+      if (imgInput && tbl._ph_img) imgInput.placeholder = tbl._ph_img;
+      const nodes = document.querySelectorAll('button, a, h1, h2, .mc-title, .mc-side-nav-btn, .mc-pill-btn, .mc-foot-btn, span');
+      nodes.forEach((el) => {
+        if (!el || el.id === 'pm-lang-switcher' || el.closest('#pm-lang-switcher') || el.children.length > 0) return;
+        const raw = (el.textContent || '').trim();
+        if (!raw || raw.length > 40) return;
+        const m = raw.match(/^([+☰⤢⬇🗂️✨🔍⚙️]+s*)(.+)$/);
+        const prefix = m ? m[1] : '';
+        const core = m ? m[2].trim() : raw;
+        const canon = REVERSE_MAP[core];
+        if (canon && tbl[canon] && core !== tbl[canon]) {
+          el.textContent = prefix + tbl[canon];
+        }
+      });
+    };
+    const mountSwitcher = () => {
+      if (document.getElementById('pm-lang-switcher')) return;
+      const sel = document.createElement('select');
+      sel.id = 'pm-lang-switcher';
+      sel.setAttribute('aria-label', 'Site Language');
+      sel.innerHTML = [
+        '<option value="en">🌐 English</option>',
+        '<option value="hi">🇮🇳 हिन्दी</option>',
+        '<option value="ta">🇮🇳 தமிழ்</option>',
+        '<option value="bn">🇮🇳 বাংলা</option>',
+        '<option value="zh">🇨🇳 中文</option>',
+        '<option value="ja">🇯🇵 日本語</option>'
+      ].join('');
+      sel.value = getLang();
+      sel.addEventListener('change', () => {
+        const next = sel.value || 'en';
+        try { localStorage.setItem('pm_site_lang', next); } catch (_) {}
+        applyLang(next);
+      });
+      (document.body || document.documentElement).appendChild(sel);
+      applyLang(sel.value);
+    };
+    const boot = () => {
+      mountSwitcher();
+      setTimeout(() => applyLang(getLang()), 250);
+      setTimeout(() => applyLang(getLang()), 900);
+      if (typeof MutationObserver !== 'undefined' && document.body) {
+        let timer = null;
+        const obs = new MutationObserver(() => {
+          if (timer) return;
+          timer = setTimeout(() => { timer = null; applyLang(getLang()); }, 180);
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+      }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  })();
+
+  /* === v83.0 SETTINGS LANGUAGE ENGINE (EN DEFAULT, HIDE FLOATING DROPDOWN) === */
+  (function initV83SettingsLanguage() {
+    if (typeof document === 'undefined' || document.getElementById('pm-v83-lang-style')) return;
+    const st = document.createElement('style');
+    st.id = 'pm-v83-lang-style';
+    st.textContent = '#pm-lang-switcher { display: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+    const DICT = {
+      en: {
+        'What can I help with?': 'What can I help with?',
+        'New chat': 'New chat', 'New Chat': 'New Chat', 'Create a job': 'Create a job',
+        'General Chat': 'General Chat', 'Code Studio': 'Code Studio', 'Study Workspace': 'Study Workspace',
+        'Research Lab': 'Research Lab', 'Image Studio': 'Image Studio', 'Library': 'Library',
+        'Settings & Theme': 'Settings & Theme', 'Site Language': 'Site Language',
+        'Search': 'Search', 'Send': 'Send', 'Preview': 'Preview', 'Download': 'Download',
+        'Standard': 'Standard', 'HD': 'HD', 'Sign In': 'Sign In', 'Sign Out': 'Sign Out',
+        '_ph_chat': 'Ask anything...',
+        '_ph_img': 'Describe the exact image, scene, style, and framing you want...'
+      },
+      hi: {
+        'What can I help with?': 'मैं आपकी क्या मदद कर सकता हूँ?',
+        'New chat': 'नई चैट', 'New Chat': 'नई चैट', 'Create a job': 'नया काम शुरू करें',
+        'General Chat': 'जनरल चैट', 'Code Studio': 'कोड स्टूडियो', 'Study Workspace': 'स्टडी वर्कस्पेस',
+        'Research Lab': 'रिसर्च लैब', 'Image Studio': 'इमेज स्टूडियो', 'Library': 'लाइब्रेरी',
+        'Settings & Theme': 'सेटिंग्स और थीम', 'Site Language': 'साइट की भाषा',
+        'Search': 'खोजें', 'Send': 'भेजें', 'Preview': 'प्रीव्यू', 'Download': 'डाउनलोड',
+        'Standard': 'स्टैंडर्ड', 'HD': 'एचडी (HD)', 'Sign In': 'साइन इन', 'Sign Out': 'साइन आउट',
+        '_ph_chat': 'कुछ भी पूछें...',
+        '_ph_img': 'आप जैसी इमेज बनाना चाहते हैं उसका पूरा विवरण लिखें...'
+      },
+      ta: {
+        'What can I help with?': 'நான் உங்களுக்கு எவ்வாறு உதவ முடியும்?',
+        'New chat': 'புதிய அரட்டை', 'New Chat': 'புதிய அரட்டை', 'Create a job': 'புதிய பணி உருவாக்கு',
+        'General Chat': 'பொது அரட்டை', 'Code Studio': 'கோட் ஸ்டுடியோ', 'Study Workspace': 'படிப்பு மையம்',
+        'Research Lab': 'ஆராய்ச்சி ஆய்வகம்', 'Image Studio': 'பட ஸ்டுடியோ', 'Library': 'நூலகம்',
+        'Settings & Theme': 'அமைப்புகள் & தீம்', 'Site Language': 'தள மொழி',
+        'Search': 'தேடு', 'Send': 'அனுப்பு', 'Preview': 'முன்னோட்டம்', 'Download': 'பதிவிறக்கு',
+        'Standard': 'நிலையானது', 'HD': 'HD', 'Sign In': 'உள்நுழைக', 'Sign Out': 'வெளியேறு',
+        '_ph_chat': 'எதுவும் கேளுங்கள்...',
+        '_ph_img': 'நீங்கள் உருவாக்க விரும்பும் படத்தை விவரிக்கவும்...'
+      },
+      bn: {
+        'What can I help with?': 'আমি আপনাকে কীভাবে সাহায্য করতে পারি?',
+        'New chat': 'নতুন চ্যাট', 'New Chat': 'নতুন চ্যাট', 'Create a job': 'নতুন কাজ তৈরি করুন',
+        'General Chat': 'জেনারেল চ্যাট', 'Code Studio': 'কোড স্টুডিও', 'Study Workspace': 'স্টাডি ওয়ার্কস্পেস',
+        'Research Lab': 'রিসার্চ ল্যাব', 'Image Studio': 'ইমেজ স্টুডিও', 'Library': 'লাইব্রেরি',
+        'Settings & Theme': 'সেটিংস ও থিম', 'Site Language': 'সাইটের ভাষা',
+        'Search': 'খুঁজুন', 'Send': 'পাঠান', 'Preview': 'প্রিভিউ', 'Download': 'ডাউনলোড',
+        'Standard': 'স্ট্যান্ডার্ড', 'HD': 'HD', 'Sign In': 'সাইন ইন', 'Sign Out': 'সাইন আউট',
+        '_ph_chat': 'যা খুশি জিজ্ঞাসা করুন...',
+        '_ph_img': 'আপনি যেমন ছবি তৈরি করতে চান তা বিস্তারিত লিখুন...'
+      },
+      zh: {
+        'What can I help with?': '我能为您做些什么？',
+        'New chat': '新对话', 'New Chat': '新对话', 'Create a job': '创建任务',
+        'General Chat': '智能对话', 'Code Studio': '代码工作室', 'Study Workspace': '学习空间',
+        'Research Lab': '研究实验室', 'Image Studio': '图像工作室', 'Library': '素材库',
+        'Settings & Theme': '设置与主题', 'Site Language': '网站语言',
+        'Search': '搜索', 'Send': '发送', 'Preview': '预览', 'Download': '下载',
+        'Standard': '标准', 'HD': '高清 HD', 'Sign In': '登录', 'Sign Out': '退出登录',
+        '_ph_chat': '问我任何问题...',
+        '_ph_img': '详细描述你想生成的图像、构图和风格...'
+      },
+      ja: {
+        'What can I help with?': 'どのようなご用件でしょうか？',
+        'New chat': '新しいチャット', 'New Chat': '新しいチャット', 'Create a job': 'ジョブを作成',
+        'General Chat': '一般チャット', 'Code Studio': 'コードスタジオ', 'Study Workspace': '学習スペース',
+        'Research Lab': 'リサーチラボ', 'Image Studio': '画像スタジオ', 'Library': 'ライブラリ',
+        'Settings & Theme': '設定とテーマ', 'Site Language': 'サイト言語',
+        'Search': '検索', 'Send': '送信', 'Preview': 'プレビュー', 'Download': 'ダウンロード',
+        'Standard': '標準', 'HD': '高画質 HD', 'Sign In': 'サインイン', 'Sign Out': 'サインアウト',
+        '_ph_chat': '何でも質問してください...',
+        '_ph_img': '作成したい画像の内容・構図・スタイルを入力してください...'
+      }
+    };
+    const REVERSE = {};
+    Object.values(DICT).forEach((tbl) => {
+      Object.entries(tbl).forEach(([k, v]) => {
+        if (!k.startsWith('_')) REVERSE[v] = k;
+      });
+    });
+    window.__pmGetSiteLang = () => {
+      try {
+        const s = localStorage.getItem('pm_site_lang');
+        return s && DICT[s] ? s : 'en';
+      } catch (_) { return 'en'; }
+    };
+    const applyLang = (langCode) => {
+      const lang = DICT[langCode] ? langCode : 'en';
+      const tbl = DICT[lang];
+      document.documentElement.lang = lang;
+      const chatInput = document.getElementById('mc-chat-input');
+      if (chatInput && tbl._ph_chat) chatInput.placeholder = tbl._ph_chat;
+      const imgInput = document.getElementById('mc-img-studio-input');
+      if (imgInput && tbl._ph_img) imgInput.placeholder = tbl._ph_img;
+      const nodes = document.querySelectorAll('button, a, h1, h2, .mc-title, .mc-side-nav-btn, .mc-pill-btn, .mc-foot-btn, span, div');
+      nodes.forEach((el) => {
+        if (!el || el.children.length > 0) return;
+        const raw = (el.textContent || '').trim();
+        if (!raw || raw.length > 48) return;
+        const m = raw.match(/^([+☰⤢⬇🗂️✨🔍⚙️🌐›]+s*)(.+?)(s*[›>])?$/);
+        const prefix = m ? m[1] : '';
+        const core = m ? m[2].trim() : raw;
+        const suffix = (m && m[3]) ? m[3] : '';
+        const canon = REVERSE[core];
+        if (canon && tbl[canon] && core !== tbl[canon]) {
+          el.textContent = prefix + tbl[canon] + suffix;
+        }
+      });
+    };
+    window.__pmSetSiteLang = (code) => {
+      const next = DICT[code] ? code : 'en';
+      try { localStorage.setItem('pm_site_lang', next); } catch (_) {}
+      applyLang(next);
+    };
+    const boot = () => {
+      applyLang(window.__pmGetSiteLang());
+      setTimeout(() => applyLang(window.__pmGetSiteLang()), 300);
+      if (typeof MutationObserver !== 'undefined' && document.body) {
+        let t = null;
+        const obs = new MutationObserver(() => {
+          if (t) return;
+          t = setTimeout(() => { t = null; applyLang(window.__pmGetSiteLang()); }, 200);
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+      }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  })();
 })();
 
-/* === MORPHIC_GENERAL_CHAT_UI_END === */
+
+
