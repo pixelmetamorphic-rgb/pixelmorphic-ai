@@ -5141,7 +5141,7 @@
     const isGuestNow = isGuestModeActiveV66();
     const headInitials = isGuestNow ? 'GU' : (cfg.initials || 'PM');
     const headName = isGuestNow ? 'Guest Visitor' : (cfg.displayName || 'Pixelmorphic User');
-    const headSub = isGuestNow ? 'Guest Mode · Click to Sign In' : (cfg.planBadge || 'Pro');
+    const headSub = isGuestNow ? 'Guest Mode - Click to Sign In' : (window.__pmLivePlanBadge || cfg.planBadge || 'Free');
     const headBg = isGuestNow ? 'linear-gradient(135deg, #475569, #1e293b)' : (cfg.avatarBg || 'linear-gradient(135deg, #10b981, #059669)');
 
     const pop = document.createElement('div');
@@ -13642,7 +13642,7 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     const isGuestNow = isGuestModeActiveV66();
     const pillInitials = isGuestNow ? 'GU' : (cfg.initials || 'PM');
     const pillName = isGuestNow ? 'Guest Visitor' : (cfg.displayName || 'Pixelmorphic User');
-    const pillSub = isGuestNow ? 'Guest Mode · Click to Sign Up' : (cfg.planBadge || 'Pro');
+    const pillSub = isGuestNow ? 'Guest Mode - Click to Sign Up' : (window.__pmLivePlanBadge || cfg.planBadge || 'Free');
     const pillBg = isGuestNow ? 'linear-gradient(135deg, #475569, #1e293b)' : (cfg.avatarBg || 'linear-gradient(135deg, #10b981, #059669)');
 
     profDock.innerHTML = `
@@ -13987,6 +13987,57 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
   setTimeout(syncLivePlanBadgeV85, 2200);
   window.addEventListener('focus', () => { syncLivePlanBadgeV85(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncLivePlanBadgeV85(); });
+
+  
+  async function syncLivePlanBadgeV852() {
+    try {
+      const r = await fetch('/api/research?chatMode=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authAction: 'getMyQuota' })
+      });
+      const d = await r.json();
+      if (!d || !d.ok || !d.authenticated || !d.plan) return;
+      const liveBadge = String(d.plan.badge || d.plan.name || 'Free').replace(/^Pixelmorphic\s+/i, '').trim();
+      window.__pmIsAdmin = Boolean(d.isAdmin);
+      window.__pmLivePlanBadge = liveBadge;
+      const cfgNow = state.userSettings || loadUserSettings();
+      if (cfgNow) {
+        const changed = cfgNow.planBadge !== liveBadge;
+        cfgNow.planBadge = liveBadge;
+        if (state.authUser) state.authUser.planBadge = liveBadge;
+        try { localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(cfgNow)); } catch (_) {}
+        try {
+          const sess = JSON.parse(localStorage.getItem('morphic_auth_session_v62') || 'null');
+          if (sess && sess.planBadge !== liveBadge) {
+            sess.planBadge = liveBadge;
+            localStorage.setItem('morphic_auth_session_v62', JSON.stringify(sess));
+          }
+        } catch (_) {}
+        if (changed) syncLeftSidebar();
+      }
+      const pillBtn = document.getElementById('mc-profile-pill-btn');
+      if (pillBtn && !isGuestModeActiveV66()) {
+        const subEl = pillBtn.querySelector('div > div:nth-child(2)');
+        if (subEl) subEl.textContent = liveBadge;
+      }
+      const pop = document.getElementById('mc-profile-popover');
+      if (pop && !isGuestModeActiveV66()) {
+        const popSub = pop.querySelector('div > div > div:nth-child(2)');
+        if (popSub && /^(Free|Pro|Pro\+|Max|Plus)$/i.test((popSub.textContent || '').trim())) {
+          popSub.textContent = liveBadge;
+        }
+      }
+      const profBadge = document.getElementById('mc-prof-live-plan-badge');
+      if (profBadge) profBadge.textContent = liveBadge.toUpperCase() + ' PLAN';
+    } catch (_) {}
+  }
+  window.__pmSyncLivePlanBadge = syncLivePlanBadgeV852;
+  setTimeout(syncLivePlanBadgeV852, 350);
+  setTimeout(syncLivePlanBadgeV852, 1800);
+  setTimeout(syncLivePlanBadgeV852, 4500);
+  window.addEventListener('focus', () => { syncLivePlanBadgeV852(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncLivePlanBadgeV852(); });
 
   setInterval(() => checkAndMountMainView(false), 3500);
 
