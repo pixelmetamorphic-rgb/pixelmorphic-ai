@@ -13953,6 +13953,41 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     loadFromServerDisk();
     detectUserLocationClient();
   }, 120);
+  
+  async function syncLivePlanBadgeV85() {
+    try {
+      const r = await fetch('/api/research?chatMode=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authAction: 'getMyQuota' })
+      });
+      const d = await r.json();
+      if (!d || !d.ok || !d.authenticated || !d.plan) return;
+      const liveBadge = String(d.plan.badge || d.plan.name || 'Free').trim();
+      window.__pmIsAdmin = Boolean(d.isAdmin);
+      window.__pmLivePlanBadge = liveBadge;
+      const cfgNow = state.userSettings || loadUserSettings();
+      if (cfgNow && cfgNow.planBadge !== liveBadge) {
+        cfgNow.planBadge = liveBadge;
+        if (state.authUser) state.authUser.planBadge = liveBadge;
+        try { localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(cfgNow)); } catch (_) {}
+        syncLeftSidebar();
+      }
+      const pillBtn = document.getElementById('mc-profile-pill-btn');
+      if (pillBtn && !isGuestModeActiveV66()) {
+        const subEl = pillBtn.querySelector('div > div:nth-child(2)');
+        if (subEl && subEl.textContent !== liveBadge) subEl.textContent = liveBadge;
+      }
+      const profBadge = document.getElementById('mc-prof-live-plan-badge');
+      if (profBadge) profBadge.textContent = liveBadge.toUpperCase() + ' PLAN';
+    } catch (_) {}
+  }
+  window.__pmSyncLivePlanBadge = syncLivePlanBadgeV85;
+  setTimeout(syncLivePlanBadgeV85, 450);
+  setTimeout(syncLivePlanBadgeV85, 2200);
+  window.addEventListener('focus', () => { syncLivePlanBadgeV85(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncLivePlanBadgeV85(); });
+
   setInterval(() => checkAndMountMainView(false), 3500);
 
   /* === v81.0 MOBILE-FIRST CLEAN UI OVERHAUL (<= 860px only, desktop untouched) === */
