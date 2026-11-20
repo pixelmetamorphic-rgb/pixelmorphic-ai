@@ -403,6 +403,7 @@
 
 /* === MORPHIC_RESEARCH_UI_START === */
 ;
+;
 /* ============================================================================
  * PIXELMORPHIC AI — MORPHIC RESEARCH LAB PRO UI (v11.6 - Researcher Edition)
  * Fixes & Upgrades:
@@ -11005,7 +11006,7 @@ Please check your connection or retry in a few seconds. No placeholder report wa
       { id: 'personalization', icon: '🧠', label: 'Personalization' },
       { id: 'memory', icon: '💾', label: 'Saved Memory' },
       { id: 'billing', icon: '💳', label: 'Billing & Plan' },
-      { id: 'security', icon: '🔐', label: 'Login & Security' }
+      { id: 'security', icon: '🔐', label: 'Login & Security' }, ...((['pixelmetamorphic@gmail.com','harsh@pixelmorphic.com'].includes(String(state.authUser?.email||cfg.email||'').toLowerCase()) || window.__pmIsAdmin) ? [{ id: 'admin', icon: '🛡', label: 'Admin Console' }] : [])
     ];
 
     const renderModalContent = () => {
@@ -11262,44 +11263,27 @@ Please check your connection or retry in a few seconds. No placeholder report wa
         `;
       } else if (activeTab === 'billing') {
         rightHtml = `
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <h2 style="margin:0;font-size:20px;font-weight:800;">💳 Billing, Subscription &amp; Usage</h2>
-            <button type="button" class="mc-calc-act-key" id="mc-set-close-x">✕ Close</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;"><h2 style="margin:0;font-size:20px;font-weight:800;">Billing, Plans &amp; Usage</h2><button type="button" class="mc-calc-act-key" id="mc-set-close-x">Close</button></div>
+          <div id="pm-v85-quota-box" class="mc-set-card" style="background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(6,78,59,.35));border-color:#10b981;"><div style="font-size:13px;color:#d1fae5;">Loading your live plan &amp; quota...</div></div>
+          <div class="mc-set-card">
+            <label class="mc-set-label">Pixelmorphic AI Subscription Plans (Monthly)</label>
+            <div class="mc-theme-grid" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;">
+              <div class="mc-theme-card" style="text-align:left;padding:12px;"><div style="font-weight:800;font-size:15px;">Free</div><div style="font-size:18px;font-weight:800;color:#6ee7b7;margin:4px 0;">Rs.0 <span style="font-size:11px;opacity:.7;">/ mo</span></div><div style="font-size:11.5px;opacity:.85;line-height:1.5;">10 Chat+Study / day<br>1 Deep Search trial<br>5 Std Images / mo<br>10 Code credits / mo</div></div>
+              <div class="mc-theme-card" style="text-align:left;padding:12px;"><div style="font-weight:800;font-size:15px;">Pro</div><div style="font-size:18px;font-weight:800;color:#6ee7b7;margin:4px 0;">Rs.500 <span style="font-size:11px;opacity:.7;">/ mo</span></div><div style="font-size:11.5px;opacity:.85;line-height:1.5;">50 Chat+Study / day<br>1 Deep Search / week<br>50 Images / mo (HD)<br>100 Code credits / mo</div></div>
+              <div class="mc-theme-card active" style="text-align:left;padding:12px;border-color:#10b981;"><div style="font-weight:800;font-size:15px;">Pro+ <span style="font-size:10px;background:#10b981;color:#031c12;padding:2px 6px;border-radius:999px;">2x VALUE</span></div><div style="font-size:18px;font-weight:800;color:#6ee7b7;margin:4px 0;">Rs.900 <span style="font-size:11px;opacity:.7;">/ mo</span></div><div style="font-size:11.5px;opacity:.85;line-height:1.5;">100 Chat+Study / day<br>2 Deep Searches / week<br>100 Images / mo (HD)<br>200 Code credits / mo</div></div>
+              <div class="mc-theme-card" style="text-align:left;padding:12px;"><div style="font-weight:800;font-size:15px;">Max</div><div style="font-size:18px;font-weight:800;color:#6ee7b7;margin:4px 0;">Rs.2,999 <span style="font-size:11px;opacity:.7;">/ mo</span></div><div style="font-size:11.5px;opacity:.85;line-height:1.5;">500 Chat+Study / day<br>30 Deep Searches / week<br>200 Images / mo (HD+)<br>1,000 Code credits / mo</div></div>
+            </div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-top:10px;">Upgrade via UPI / Razorpay or contact support@pixelmorphicai.co</div>
           </div>
-          <div class="mc-set-card" style="background:linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(6,78,59,0.4) 100%);border-color:#10b981;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-              <div>
-                <span style="font-size:10.5px;font-weight:800;letter-spacing:0.08em;color:#6ee7b7;text-transform:uppercase;">CURRENT ACTIVE PLAN</span>
-                <div style="font-size:20px;font-weight:800;color:#ffffff;margin-top:2px;">Pixelmorphic AI Pro</div>
-                <div style="font-size:12px;color:#d1fae5;margin-top:3px;">Unlimited Morphic Ultra, Pro &amp; Fast · 8K Image &amp; eBook Studio · Full-Stack Code IDE · Multi-PDF Study Notebook</div>
-              </div>
-              <span style="background:#10b981;color:#042f1e;font-weight:800;font-size:12px;padding:6px 14px;border-radius:999px;">ACTIVE · LIFETIME</span>
-            </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-            <div class="mc-set-card" style="text-align:center;">
-              <div style="font-size:11px;color:#94a3b8;font-weight:700;">SAVED THREADS</div>
-              <div style="font-size:22px;font-weight:800;color:#6ee7b7;margin-top:4px;">${state.threads.length}</div>
-            </div>
-            <div class="mc-set-card" style="text-align:center;">
-              <div style="font-size:11px;color:#94a3b8;font-weight:700;">LIBRARY ASSETS</div>
-              <div style="font-size:22px;font-weight:800;color:#6ee7b7;margin-top:4px;">${state.library.length}</div>
-            </div>
-            <div class="mc-set-card" style="text-align:center;">
-              <div style="font-size:11px;color:#94a3b8;font-weight:700;">API ENGINE STATUS</div>
-              <div style="font-size:14px;font-weight:800;color:#34d399;margin-top:8px;">● Connected &amp; Ready</div>
-            </div>
-          </div>
-
-          <div class="mc-set-card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-            <div>
-              <div style="font-size:13.5px;font-weight:700;">Export Complete Workspace Backup (.json)</div>
-              <div style="font-size:11.5px;color:#94a3b8;">Download all your chats, study vault, memories, and settings</div>
-            </div>
-            <button type="button" class="mc-pill-btn active" id="mc-export-backup-btn">📥 Export Backup</button>
-          </div>
+          <div class="mc-set-card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;"><div><div style="font-size:13.5px;font-weight:700;">Export Workspace Backup (.json)</div></div><button type="button" class="mc-pill-btn active" id="mc-export-backup-btn">Export Backup</button></div>
         `;
+        setTimeout(() => { if (window.__pmLoadMyQuota) window.__pmLoadMyQuota(); }, 30);
+      } else if (activeTab === 'admin') {
+        rightHtml = `
+          <div style="display:flex;align-items:center;justify-content:space-between;"><h2 style="margin:0;font-size:20px;font-weight:800;">Founder Admin Console</h2><button type="button" class="mc-calc-act-key" id="mc-set-close-x">Close</button></div>
+          <div id="pm-v85-admin-root" class="mc-set-card"><div style="font-size:13px;color:#d1fae5;">Loading users &amp; subscription controller...</div></div>
+        `;
+        setTimeout(() => { if (window.__pmLoadAdminConsole) window.__pmLoadAdminConsole(); }, 30);
       } else if (activeTab === 'security') {
         rightHtml = `
           <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -17537,7 +17521,56 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
   })();
+
+(function(){
+  if (typeof window==='undefined' || window.__pmV85Ready) return;
+  window.__pmV85Ready = true;
+  const api = async (b) => (await fetch('/api/research?chatMode=1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)})).json();
+  window.__pmLoadMyQuota = async () => {
+    const box = document.getElementById('pm-v85-quota-box'); if (!box) return;
+    try {
+      const d = await api({ authAction: 'getMyQuota' }); if (!d||!d.ok) return;
+      window.__pmIsAdmin = Boolean(d.isAdmin);
+      const p = d.plan||{label:'Free',dailyChat:10,weeklyDeep:1,monthlyImg:5,monthlyCode:10}, u = d.usage||{};
+      const badge = d.isAdmin ? 'FOUNDER ADMIN (UNLIMITED)' : (p.label.toUpperCase()+' PLAN');
+      box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;"><div><div style="font-size:10.5px;font-weight:800;color:#6ee7b7;">ACTIVE SUBSCRIPTION</div><div style="font-size:19px;font-weight:800;color:#fff;">Pixelmorphic '+p.label+'</div></div><span style="background:#10b981;color:#031c12;font-weight:800;font-size:11px;padding:4px 12px;border-radius:999px;">'+badge+'</span></div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;font-size:12px;">'
+        +'<div style="background:rgba(0,0,0,.25);padding:8px;border-radius:8px;"><div style="opacity:.75;">Chat Today</div><div style="font-weight:800;color:#6ee7b7;">'+(u.chatToday||0)+' / '+p.dailyChat+'</div></div>'
+        +'<div style="background:rgba(0,0,0,.25);padding:8px;border-radius:8px;"><div style="opacity:.75;">Deep / Week</div><div style="font-weight:800;color:#6ee7b7;">'+(u.deepWeek||0)+' / '+p.weeklyDeep+'</div></div>'
+        +'<div style="background:rgba(0,0,0,.25);padding:8px;border-radius:8px;"><div style="opacity:.75;">Images / Mo</div><div style="font-weight:800;color:#6ee7b7;">'+(u.imgMonth||0)+' / '+p.monthlyImg+'</div></div>'
+        +'<div style="background:rgba(0,0,0,.25);padding:8px;border-radius:8px;"><div style="opacity:.75;">Code / Mo</div><div style="font-weight:800;color:#6ee7b7;">'+(u.codeMonth||0)+' / '+p.monthlyCode+'</div></div></div>';
+    } catch(_){}
+  };
+  window.__pmLoadAdminConsole = async () => {
+    const root = document.getElementById('pm-v85-admin-root'); if (!root) return;
+    try {
+      const d = await api({ authAction: 'adminListUsers' });
+      if (!d||!d.ok) { root.innerHTML = '<div style="color:#fca5a5;">Admin access required. Sign in with pixelmetamorphic@gmail.com.</div>'; return; }
+      const rows = (d.users||[]).map(u => {
+        const us=u.usage||{}, em=String(u.email||'').replace(/"/g,'&quot;');
+        return '<div style="border-top:1px solid rgba(255,255,255,.1);padding:10px 0;display:flex;flex-direction:column;gap:6px;">'
+          +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;"><div><strong style="color:#fff;">'+(u.displayName||'User')+'</strong> <span style="font-size:11.5px;color:#94a3b8;">('+em+')</span>'+(u.isAdmin?' <span style="background:#059669;color:#fff;font-size:10px;padding:2px 6px;border-radius:999px;">ADMIN</span>':'')+(u.suspended?' <span style="background:#dc2626;color:#fff;font-size:10px;padding:2px 6px;border-radius:999px;">SUSPENDED</span>':'')+'</div><div style="font-size:11.5px;color:#6ee7b7;">Chat:'+(us.chatToday||0)+' | Deep:'+(us.deepWeek||0)+' | Img:'+(us.imgMonth||0)+' | Code:'+(us.codeMonth||0)+'</div></div>'
+          +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+          +'<select data-adm-plan="'+em+'" style="background:#071b14;color:#fff;border:1px solid rgba(52,211,153,.35);border-radius:7px;padding:4px 8px;font-size:12px;">'
+          +'<option value="free"'+(u.planId==='free'?' selected':'')+'>Free (Rs.0)</option>'
+          +'<option value="pro"'+(u.planId==='pro'?' selected':'')+'>Pro (Rs.500)</option>'
+          +'<option value="pro_plus"'+(u.planId==='pro_plus'?' selected':'')+'>Pro+ (Rs.900)</option>'
+          +'<option value="max"'+(u.planId==='max'?' selected':'')+'>Max (Rs.2999)</option></select>'
+          +'<button type="button" data-adm-save="'+em+'" style="background:#10b981;color:#031c12;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Save Plan</button>'
+          +'<button type="button" data-adm-reset="'+em+'" style="background:rgba(255,255,255,.1);color:#e2e8f0;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:5px 10px;font-size:11.5px;cursor:pointer;">Reset Quota</button>'
+          +(!u.isAdmin?'<button type="button" data-adm-ban="'+em+'" style="background:rgba(220,38,38,.2);color:#fca5a5;border:1px solid rgba(220,38,38,.4);border-radius:7px;padding:5px 10px;font-size:11.5px;cursor:pointer;">'+(u.suspended?'Unban':'Suspend')+'</button>':'')
+          +'</div></div>';
+      }).join('');
+      root.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;"><div style="display:flex;gap:10px;"><div style="background:rgba(16,185,129,.15);padding:8px 14px;border-radius:10px;"><div style="font-size:10.5px;color:#94a3b8;">TOTAL USERS</div><div style="font-size:20px;font-weight:800;color:#6ee7b7;">'+d.totalUsers+'</div></div><div style="background:rgba(16,185,129,.15);padding:8px 14px;border-radius:10px;"><div style="font-size:10.5px;color:#94a3b8;">PAID USERS</div><div style="font-size:20px;font-weight:800;color:#6ee7b7;">'+d.paidCount+'</div></div></div><button type="button" id="pm-adm-toggle-free" style="background:'+(d.freeTierEnabled?'#059669':'#dc2626')+';color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">Free Tier: '+(d.freeTierEnabled?'ON (Click to Pause)':'PAUSED (Click to Resume)')+'</button></div><div style="max-height:360px;overflow-y:auto;">'+(rows||'No users yet.')+'</div>';
+      document.getElementById('pm-adm-toggle-free')?.addEventListener('click',async()=>{await api({authAction:'adminToggleFreeTier'});window.__pmLoadAdminConsole();});
+      root.querySelectorAll('[data-adm-save]').forEach(b=>b.onclick=async()=>{const em=b.getAttribute('data-adm-save'),s=root.querySelector('[data-adm-plan="'+em+'"]');await api({authAction:'adminSetPlan',targetEmail:em,planId:s?s.value:'free',days:30});window.__pmLoadAdminConsole();});
+      root.querySelectorAll('[data-adm-reset]').forEach(b=>b.onclick=async()=>{await api({authAction:'adminResetQuota',targetEmail:b.getAttribute('data-adm-reset')});window.__pmLoadAdminConsole();});
+      root.querySelectorAll('[data-adm-ban]').forEach(b=>b.onclick=async()=>{await api({authAction:'adminToggleSuspend',targetEmail:b.getAttribute('data-adm-ban')});window.__pmLoadAdminConsole();});
+    } catch(_){ root.innerHTML = '<div style="color:#fca5a5;">Error loading Admin Console.</div>'; }
+  };
 })();
+})();
+
 
 
 
