@@ -373,6 +373,15 @@ export function createApp(config, { fetchImpl = fetch, audit = diskAudit } = {})
 
   return http.createServer(async (req, res) => {
 
+  // PM_V89_WWW_REDIRECT: Canonical 301 redirect www.pixelmorphicai.co -> pixelmorphicai.co
+  const _reqHost = String(req.headers.host || '').toLowerCase().split(':')[0];
+  if (_reqHost === 'www.pixelmorphicai.co' && (req.method === 'GET' || req.method === 'HEAD')) {
+    res.writeHead(301, { Location: 'https://pixelmorphicai.co' + (req.url || '/') });
+    res.end();
+    return;
+  }
+
+
   // PM_V89_LEGAL_ROUTES: Serve /privacy and /terms cleanly for Google OAuth & Search indexing
   if (req.method === 'GET' && (req.url === '/privacy' || req.url === '/privacy/' || req.url === '/terms' || req.url === '/terms/')) {
     try {
