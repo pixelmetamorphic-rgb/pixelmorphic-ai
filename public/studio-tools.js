@@ -412,6 +412,7 @@
 ;
 ;
 ;
+;
 /* ============================================================================
  * PIXELMORPHIC AI — MORPHIC RESEARCH LAB PRO UI (v11.6 - Researcher Edition)
  * Fixes & Upgrades:
@@ -10102,6 +10103,7 @@ Please check your connection or retry in a few seconds. No placeholder report wa
   }
 
   function openGoogleOtpAuthModal(initialTab = 'signin') {
+    if (window.__pmOpenPremiumAuth) { window.__pmOpenPremiumAuth(initialMode); return; }
     injectCustomerPortalStyles();
     const existing = document.getElementById('mc-lock-screen-overlay');
     if (existing) existing.remove();
@@ -17383,6 +17385,265 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
       if (box && /Loading your live plan/i.test(box.textContent || '')) paintBillingBoxV872();
     }, 600);
     setTimeout(scrubLegacyOwnerAndApiUi, 200);
+  })();
+
+  
+  // === PIXELMORPHIC v88.0 PREMIUM STANDARD LOGIN (GOOGLE ONE-TAP + PASSWORD + EMAIL OTP) ===
+  (function initPmV88Auth() {
+    if (window.__pmV88AuthInit) return;
+    window.__pmV88AuthInit = true;
+    function nameFromEmail(em) {
+      const local = String(em || '').split('@')[0] || 'User';
+      return local.replace(/[0-9]+$/g, '').replace(/[._+-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim() || 'Pixelmorphic User';
+    }
+    function finishLoginV88(data, overlayEl) {
+      const u = data.user || {};
+      const cfg = state.userSettings || loadUserSettings();
+      cfg.displayName = u.displayName || nameFromEmail(u.email);
+      cfg.email = u.email || '';
+      cfg.emailHandle = u.email || '';
+      cfg.initials = u.initials || cfg.displayName.slice(0, 2).toUpperCase();
+      cfg.avatarBg = u.avatarBg || 'linear-gradient(135deg, #10b981, #059669)';
+      cfg.planBadge = u.planBadge || 'Free';
+      cfg.roleTitle = 'Member';
+      saveUserSettings();
+      try {
+        localStorage.setItem('morphic_auth_session_v62', JSON.stringify({
+          token: data.token,
+          user: u,
+          planBadge: cfg.planBadge,
+          verifiedAt: new Date().toISOString()
+        }));
+      } catch (_) {}
+      if (typeof window.__pmApplyLivePlanBadge === 'function') window.__pmApplyLivePlanBadge(cfg.planBadge);
+      if (typeof window.__pmRefreshLiveQuota === 'function') window.__pmRefreshLiveQuota();
+      syncLeftSidebar();
+      if (overlayEl) overlayEl.remove();
+      const oldOv = document.getElementById('mc-lock-screen-overlay');
+      if (oldOv) oldOv.remove();
+      if (typeof showDownloadToast === 'function') showDownloadToast('Welcome to Pixelmorphic AI, ' + cfg.displayName + '!');
+    }
+    async function handleGoogleCredential(response, overlayEl, errBox) {
+      try {
+        if (!response || !response.credential) return;
+        const r = await fetch('/api/research?chatMode=1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ authAction: 'googleIdTokenLogin', credential: response.credential })
+        });
+        const d = await r.json();
+        if (!d.ok) {
+          if (errBox) { errBox.style.display = 'block'; errBox.textContent = d.error || 'Google Sign-In failed.'; }
+          return;
+        }
+        finishLoginV88(d, overlayEl);
+      } catch (e) {
+        if (errBox) { errBox.style.display = 'block'; errBox.textContent = 'Connection error during Google Sign-In.'; }
+      }
+    }
+    async function mountGoogleSignIn(btnHost, overlayEl, errBox, allowOneTap) {
+      try {
+        const r = await fetch('/api/research?chatMode=1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ authAction: 'googleAuthConfig' })
+        });
+        const cfg = await r.json();
+        const cid = (cfg && cfg.clientId) || '';
+        if (!cid) {
+          if (btnHost) {
+            btnHost.innerHTML = '<button type="button" id="pm-v88-g-fallback" style="width:100%;padding:11px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.16);background:#111816;color:#e5e7eb;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;"><span style="font-weight:800;color:#10b981;">G</span> Continue with Google (Email OTP)</button>';
+            btnHost.querySelector('#pm-v88-g-fallback')?.addEventListener('click', () => {
+              const otpTab = document.getElementById('pm-v88-tab-otp');
+              if (otpTab) otpTab.click();
+              document.getElementById('pm-v88-email')?.focus();
+            });
+          }
+          return;
+        }
+        const tryInit = (tries) => {
+          if (window.google && window.google.accounts && window.google.accounts.id) {
+            window.google.accounts.id.initialize({
+              client_id: cid,
+              callback: (resp) => handleGoogleCredential(resp, overlayEl, errBox),
+              auto_select: false,
+              cancel_on_tap_outside: false
+            });
+            if (btnHost) {
+              btnHost.innerHTML = '';
+              window.google.accounts.id.renderButton(btnHost, {
+                theme: 'filled_black',
+                size: 'large',
+                shape: 'pill',
+                width: Math.min(360, btnHost.offsetWidth || 340),
+                text: 'continue_with'
+              });
+            }
+            if (allowOneTap && isGuestModeActiveV66()) {
+              window.google.accounts.id.prompt();
+            }
+          } else if (tries > 0) {
+            setTimeout(() => tryInit(tries - 1), 350);
+          }
+        };
+        tryInit(15);
+      } catch (_) {}
+    }
+    function openPremiumAuthModalV88(initialMode) {
+      document.getElementById('pm-v88-auth-overlay')?.remove();
+      document.getElementById('mc-lock-screen-overlay')?.remove();
+      let mode = initialMode === 'otp' ? 'otp' : 'password';
+      let otpSent = false;
+      let pendingEmail = '';
+      let pendingPass = '';
+      const ov = document.createElement('div');
+      ov.id = 'pm-v88-auth-overlay';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:2000000;background:radial-gradient(circle at top,rgba(16,185,129,0.16),#050908 62%);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;';
+      ov.innerHTML = `
+        <div style="width:100%;max-width:410px;background:#0b1110;border:1px solid rgba(16,185,129,0.28);border-radius:20px;padding:28px 24px;box-shadow:0 24px 70px rgba(0,0,0,0.75);color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;position:relative;">
+          <button type="button" id="pm-v88-close" style="position:absolute;top:14px;right:14px;background:transparent;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:4px 8px;">&times;</button>
+          <div style="text-align:center;margin-bottom:20px;">
+            <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#10b981,#047857);display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:19px;color:#fff;box-shadow:0 8px 24px rgba(16,185,129,0.32);">PM</div>
+            <h2 style="margin:12px 0 4px;font-size:21px;font-weight:800;letter-spacing:-0.02em;">Welcome to Pixelmorphic AI</h2>
+            <p style="margin:0;font-size:13px;color:#94a3b8;">Sign in to continue to your unified AI workspace</p>
+          </div>
+          <div id="pm-v88-google-slot" style="display:flex;justify-content:center;min-height:44px;margin-bottom:14px;"></div>
+          <div style="display:flex;align-items:center;gap:10px;margin:14px 0;">
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+            <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;">or continue with email</span>
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#060a09;padding:4px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);margin-bottom:14px;">
+            <button type="button" id="pm-v88-tab-pass" style="padding:8px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:#10b981;color:#052e16;">Password</button>
+            <button type="button" id="pm-v88-tab-otp" style="padding:8px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#94a3b8;">Email OTP</button>
+          </div>
+          <div id="pm-v88-err" style="display:none;margin-bottom:12px;padding:9px 12px;border-radius:10px;background:rgba(239,68,68,0.14);border:1px solid rgba(239,68,68,0.35);color:#fca5a5;font-size:12.5px;"></div>
+          <div id="pm-v88-ok" style="display:none;margin-bottom:12px;padding:9px 12px;border-radius:10px;background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.35);color:#6ee7b7;font-size:12.5px;"></div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <input id="pm-v88-email" type="email" autocomplete="email" placeholder="Email address (e.g. you@gmail.com)" style="width:100%;box-sizing:border-box;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:#060a09;color:#fff;font-size:14px;outline:none;" />
+            <input id="pm-v88-pass" type="password" autocomplete="current-password" placeholder="Password (min 6 chars)" style="width:100%;box-sizing:border-box;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:#060a09;color:#fff;font-size:14px;outline:none;" />
+            <input id="pm-v88-otp" type="text" inputmode="numeric" maxlength="6" placeholder="Enter 6-digit OTP code" style="display:none;width:100%;box-sizing:border-box;padding:11px 13px;border-radius:10px;border:1px solid #10b981;background:#060a09;color:#fff;font-size:16px;letter-spacing:0.25em;text-align:center;outline:none;" />
+            <button type="button" id="pm-v88-submit" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#052e16;font-weight:800;font-size:14.5px;cursor:pointer;margin-top:4px;">Sign In</button>
+            <button type="button" id="pm-v88-signup-toggle" style="background:transparent;border:none;color:#6ee7b7;font-size:12.5px;cursor:pointer;padding:4px;">New here? Create account with Email &amp; Password</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(ov);
+      const errBox = ov.querySelector('#pm-v88-err');
+      const okBox = ov.querySelector('#pm-v88-ok');
+      const emailEl = ov.querySelector('#pm-v88-email');
+      const passEl = ov.querySelector('#pm-v88-pass');
+      const otpEl = ov.querySelector('#pm-v88-otp');
+      const submitBtn = ov.querySelector('#pm-v88-submit');
+      const tabPass = ov.querySelector('#pm-v88-tab-pass');
+      const tabOtp = ov.querySelector('#pm-v88-tab-otp');
+      const toggleSignup = ov.querySelector('#pm-v88-signup-toggle');
+      let isNewSignup = false;
+      function setMsg(err, ok) {
+        errBox.style.display = err ? 'block' : 'none'; errBox.textContent = err || '';
+        okBox.style.display = ok ? 'block' : 'none'; okBox.textContent = ok || '';
+      }
+      function syncTabs() {
+        setMsg('', '');
+        otpSent = false;
+        otpEl.style.display = 'none';
+        otpEl.value = '';
+        if (mode === 'password') {
+          tabPass.style.background = '#10b981'; tabPass.style.color = '#052e16';
+          tabOtp.style.background = 'transparent'; tabOtp.style.color = '#94a3b8';
+          passEl.style.display = 'block';
+          toggleSignup.style.display = 'block';
+          submitBtn.textContent = isNewSignup ? 'Create Account (Send OTP)' : 'Sign In';
+          toggleSignup.textContent = isNewSignup ? 'Already have an account? Sign In' : 'New here? Create account with Email & Password';
+        } else {
+          tabOtp.style.background = '#10b981'; tabOtp.style.color = '#052e16';
+          tabPass.style.background = 'transparent'; tabPass.style.color = '#94a3b8';
+          passEl.style.display = 'none';
+          toggleSignup.style.display = 'none';
+          submitBtn.textContent = 'Send 6-Digit OTP';
+        }
+      }
+      tabPass.addEventListener('click', () => { mode = 'password'; syncTabs(); });
+      tabOtp.addEventListener('click', () => { mode = 'otp'; syncTabs(); });
+      toggleSignup.addEventListener('click', () => { isNewSignup = !isNewSignup; syncTabs(); });
+      ov.querySelector('#pm-v88-close').addEventListener('click', () => ov.remove());
+      submitBtn.addEventListener('click', async () => {
+        setMsg('', '');
+        const email = (emailEl.value || '').trim().toLowerCase();
+        const pass = (passEl.value || '').trim();
+        if (!email || !email.includes('@')) { setMsg('Please enter a valid email address.'); return; }
+        submitBtn.disabled = true;
+        try {
+          if (otpSent) {
+            const code = (otpEl.value || '').trim();
+            if (code.length < 6) { setMsg('Please enter the 6-digit OTP sent to your email.'); submitBtn.disabled = false; return; }
+            const r = await fetch('/api/research?chatMode=1', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ authAction: 'verifyOtp', email: pendingEmail, otp: code })
+            });
+            const d = await r.json();
+            if (!d.ok) { setMsg(d.error || 'Invalid OTP.'); submitBtn.disabled = false; return; }
+            finishLoginV88(d, ov);
+            return;
+          }
+          if (mode === 'password' && !isNewSignup) {
+            if (!pass) { setMsg('Please enter your password.'); submitBtn.disabled = false; return; }
+            const r = await fetch('/api/research?chatMode=1', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ authAction: 'passwordLogin', email, password: pass })
+            });
+            const d = await r.json();
+            if (!d.ok) { setMsg(d.error || 'Login failed.'); submitBtn.disabled = false; return; }
+            finishLoginV88(d, ov);
+            return;
+          }
+          // OTP Login or New Password Account Signup (auto-derives profile name from email!)
+          if (mode === 'password' && isNewSignup && pass.length < 6) {
+            setMsg('Password must be at least 6 characters.'); submitBtn.disabled = false; return;
+          }
+          const autoName = nameFromEmail(email);
+          const r = await fetch('/api/research?chatMode=1', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              authAction: 'sendOtp',
+              email,
+              displayName: autoName,
+              password: pass || '',
+              roleTitle: 'Member',
+              planBadge: 'Free',
+              mode: isNewSignup ? 'signup' : 'signin',
+              isGoogleQuickAuth: mode === 'otp'
+            })
+          });
+          const d = await r.json();
+          if (!d.ok) { setMsg(d.error || 'Could not send OTP.'); submitBtn.disabled = false; return; }
+          otpSent = true;
+          pendingEmail = email;
+          pendingPass = pass;
+          otpEl.style.display = 'block';
+          otpEl.focus();
+          submitBtn.textContent = 'Verify OTP & Continue';
+          setMsg('', '6-digit code sent to ' + email + '. Check Inbox or Spam.');
+        } catch (e) {
+          setMsg('Network error. Please retry.');
+        }
+        submitBtn.disabled = false;
+      });
+      syncTabs();
+      mountGoogleSignIn(ov.querySelector('#pm-v88-google-slot'), ov, errBox, true);
+    }
+    // Override global modal opener with v88.0 Premium Login
+    window.openPixelmorphicAuthModal = openPremiumAuthModalV88;
+    window.__pmOpenPremiumAuth = openPremiumAuthModalV88;
+    // Auto-show Google One-Tap + clean modal on startup if guest
+    setTimeout(() => {
+      if (isGuestModeActiveV66() && !document.getElementById('pm-v88-auth-overlay')) {
+        openPremiumAuthModalV88('password');
+      }
+    }, 650);
   })();
 
   setInterval(() => checkAndMountMainView(false), 3500);

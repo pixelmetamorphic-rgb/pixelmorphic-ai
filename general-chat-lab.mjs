@@ -4614,6 +4614,151 @@ export async function handleGeneralChatApi(req, res) {
         store.freeTierEnabled = (store.freeTierEnabled === false) ? true : false;
         saveUsersStore(store); res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,freeTierEnabled:store.freeTierEnabled})); return;
       }
+      if (action === 'googleAuthConfig') {
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: true, clientId: String(process.env.GOOGLE_CLIENT_ID || '').trim() }));
+        return;
+      }
+      if (action === 'googleIdTokenLogin') {
+        const credential = String(payload.credential || '').trim();
+        const expectedAud = String(process.env.GOOGLE_CLIENT_ID || '').trim();
+        if (!expectedAud) {
+          res.writeHead(503, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Google Sign-In is not configured yet (GOOGLE_CLIENT_ID missing).' }));
+          return;
+        }
+        if (!credential) {
+          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Missing Google credential token.' }));
+          return;
+        }
+        try {
+          const vRes = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential));
+          const info = await vRes.json();
+          if (!vRes.ok || !info || !info.email || String(info.aud || '').trim() !== expectedAud) {
+            res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Google token verification failed. Please retry.' }));
+            return;
+          }
+          if (String(info.email_verified) !== 'true') {
+            res.writeHead(403, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Please use a verified Google account.' }));
+            return;
+          }
+          const email = String(info.email).trim().toLowerCase();
+          if (BLOCKED_TEMP_DOMAINS.has(email.split('@')[1] || '')) {
+            res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Disposable emails are not allowed.' }));
+            return;
+          }
+          const autoName = String(info.name || '').trim() || email.split('@')[0].replace(/[._+-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim() || 'Pixelmorphic User';
+          const palette = [
+            'linear-gradient(135deg, #10b981, #059669)',
+            'linear-gradient(135deg, #4f46e5, #7c3aed)',
+            'linear-gradient(135deg, #0284c7, #06b6d4)',
+            'linear-gradient(135deg, #ea580c, #d97706)'
+          ];
+          let userRecord = (store.users || []).find(u => String(u.email || '').toLowerCase() === email);
+          if (userRecord && userRecord.suspended) {
+            res.writeHead(403, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'This account is suspended. Contact support@pixelmorphicai.co.' }));
+            return;
+          }
+          if (!userRecord) {
+            const adminFlag = isAdminUser({ email });
+            userRecord = {
+              email,
+              displayName: autoName,
+              initials: computeInitials(autoName, email),
+              avatarBg: palette[(store.users || []).length % palette.length],
+              avatarUrl: String(info.picture || ''),
+              planId: adminFlag ? 'max' : 'free',
+              planBadge: adminFlag ? 'Max' : 'Free',
+              roleTitle: 'Member',
+              authProvider: 'Google',
+              passwordHash: hashUserPassword('google-oauth-' + email),
+              createdAt: new Date().toISOString(),
+              lastLoginAt: new Date().toISOString()
+            };
+            store.users.push(userRecord);
+          } else {
+            if (!userRecord.displayName || userRecord.displayName === 'Pixelmorphic User') userRecord.displayName = autoName;
+            userRecord.initials = computeInitials(userRecord.displayName, email);
+            if (info.picture) userRecord.avatarUrl = String(info.picture);
+            userRecord.authProvider = 'Google';
+            userRecord.lastLoginAt = new Date().toISOString();
+          }
+          const plan = ensureUserUsage(userRecord);
+          userRecord.planBadge = plan.badge || userRecord.planBadge || 'Free';
+          saveUsersStore(store);
+          const sessionToken = createServerSession(userRecord);
+          res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            ok: true,
+            token: sessionToken,
+            user: {
+              email: userRecord.email,
+              displayName: userRecord.displayName,
+              initials: userRecord.initials,
+              avatarBg: userRecord.avatarBg,
+              avatarUrl: userRecord.avatarUrl || '',
+              planBadge: userRecord.planBadge,
+              authProvider: 'Google',
+              lastLoginAt: userRecord.lastLoginAt
+            }
+          }));
+          return;
+        } catch (err) {
+          res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Google login error: ' + (err.message || 'Please retry') }));
+          return;
+        }
+      }
+      if (action === 'passwordLogin') {
+        const email = String(payload.email || '').trim().toLowerCase();
+        const password = String(payload.password || '').trim();
+        if (!email || !password) {
+          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Please enter both email and password.' }));
+          return;
+        }
+        const userRecord = (store.users || []).find(u => String(u.email || '').toLowerCase() === email);
+        if (!userRecord) {
+          res.writeHead(404, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'No account found with this email. Use Email OTP or Sign Up to create one.' }));
+          return;
+        }
+        if (userRecord.suspended) {
+          res.writeHead(403, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Account suspended. Contact support@pixelmorphicai.co.' }));
+          return;
+        }
+        if (!userRecord.passwordHash || userRecord.passwordHash !== hashUserPassword(password)) {
+          res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Incorrect password. Try again or sign in with Email OTP.' }));
+          return;
+        }
+        const plan = ensureUserUsage(userRecord);
+        userRecord.planBadge = plan.badge || userRecord.planBadge || 'Free';
+        userRecord.lastLoginAt = new Date().toISOString();
+        saveUsersStore(store);
+        const sessionToken = createServerSession(userRecord);
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          ok: true,
+          token: sessionToken,
+          user: {
+            email: userRecord.email,
+            displayName: userRecord.displayName,
+            initials: userRecord.initials,
+            avatarBg: userRecord.avatarBg,
+            planBadge: userRecord.planBadge,
+            authProvider: userRecord.authProvider || 'Password',
+            lastLoginAt: userRecord.lastLoginAt
+          }
+        }));
+        return;
+      }
       if (action === 'getAuthStatus') {
         const isAdmin = Boolean(activeSession && activeSession.isAdmin);
         const safeUsers = isAdmin ? (store.users || []).map((u) => ({
