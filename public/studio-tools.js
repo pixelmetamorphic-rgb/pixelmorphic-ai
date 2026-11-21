@@ -416,6 +416,7 @@
 ;
 ;
 ;
+;
 /* ============================================================================
  * PIXELMORPHIC AI — MORPHIC RESEARCH LAB PRO UI (v11.6 - Researcher Edition)
  * Fixes & Upgrades:
@@ -6987,7 +6988,7 @@ Please check your connection or retry in a few seconds. No placeholder report wa
     email: '',
     locationCity: '',
     // Appearance & Custom UI Features
-    themeMode: 'iron', // 'iron' | 'emerald' | 'dark' | 'cyber' | 'light' | 'oled'
+    themeMode: 'emerald', // 'iron' | 'emerald' | 'dark' | 'cyber' | 'light' | 'oled'
     accentColor: '#10b981',
     fontScale: 'normal', // 'small' | 'normal' | 'large'
     compactCards: false,
@@ -7130,7 +7131,58 @@ Please check your connection or retry in a few seconds. No placeholder report wa
     setTimeout(() => tagSidebarButtonsForMechanicalTheme(isIronOrCyber), 120);
 
     let modeCss = '';
-    if (cfg.themeMode === 'dark') {
+
+    if (cfg.themeMode === 'emerald') {
+      modeCss = `
+        html body, main, .content, .main-content, #app, #root, #mc-dedicated-host-slot, #mr-dedicated-host-slot, #mc-shell-root.mc-shell, .mr-shell {
+          background-color: #060a09 !important;
+          background-image: radial-gradient(ellipse 68% 42% at 50% -4%, rgba(16, 185, 129, 0.13) 0%, rgba(6, 10, 9, 0) 72%) !important;
+          background-attachment: fixed !important;
+          color: #f1f5f9 !important;
+        }
+        aside, .sidebar, #sidebar, nav.sidebar {
+          background: #080e0c !important;
+          border-right: 1px solid rgba(16, 185, 129, 0.14) !important;
+        }
+        [data-pm-host-header="1"], header, .topbar, .demo-topbar {
+          background: rgba(8, 14, 12, 0.88) !important;
+          backdrop-filter: blur(12px) !important;
+          border-bottom: 1px solid rgba(16, 185, 129, 0.14) !important;
+          color: #f1f5f9 !important;
+        }
+        .mc-ai-card, .mr-report-card, .mc-mock-card, .mc-fc-deck, .mc-study-banner, .mc-lib-card {
+          background: rgba(11, 18, 16, 0.92) !important;
+          border: 1px solid rgba(16, 185, 129, 0.18) !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42) !important;
+          color: #f1f5f9 !important;
+        }
+        .mc-composer-box, .mc-input-shell, .mc-prompt-card, .mc-composer-card {
+          background: rgba(11, 18, 16, 0.96) !important;
+          border: 1px solid rgba(16, 185, 129, 0.30) !important;
+          box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(16, 185, 129, 0.08) !important;
+        }
+        .mc-composer-box:focus-within, .mc-input-shell:focus-within, .mc-prompt-card:focus-within {
+          border-color: #10b981 !important;
+          box-shadow: 0 14px 44px rgba(0, 0, 0, 0.6), 0 0 0 3px rgba(16, 185, 129, 0.15) !important;
+        }
+        .mc-send-btn, #mc-send-btn, button[data-pm-send="1"] {
+          background: linear-gradient(135deg, #10b981, #059669) !important;
+          color: #042f2e !important;
+          border: none !important;
+          font-weight: 800 !important;
+          box-shadow: 0 6px 18px rgba(16, 185, 129, 0.28) !important;
+        }
+        .mc-user-bubble {
+          background: linear-gradient(135deg, #0d2b22, #092019) !important;
+          border: 1px solid rgba(16, 185, 129, 0.32) !important;
+          color: #f8fafc !important;
+        }
+        .mc-title, .mr-brand-title {
+          color: #ffffff !important;
+          letter-spacing: -0.02em !important;
+        }
+      `;
+    } else if (cfg.themeMode === 'dark') {
       modeCss = `
         html body, main, .content, .main-content, #app, #root, #mc-dedicated-host-slot, #mr-dedicated-host-slot, #mc-shell-root.mc-shell, .mr-shell {
           background: #0d1117 !important;
@@ -17757,6 +17809,23 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     }
     setTimeout(nukeLegacyCards, 100);
     setInterval(nukeLegacyCards, 1200);
+  })();
+
+  
+  // === PIXELMORPHIC v90.0 OBSIDIAN EMERALD SIGNATURE DEFAULT ===
+  (function applyV90DefaultTheme() {
+    try {
+      if (!localStorage.getItem('pm_v90_obsidian_emerald_v1')) {
+        const cfg = state.userSettings || loadUserSettings();
+        if (cfg && (!cfg.themeMode || cfg.themeMode === 'iron' || cfg.themeMode === 'cyber')) {
+          cfg.themeMode = 'emerald';
+          cfg.accentColor = '#10b981';
+          localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(cfg));
+        }
+        localStorage.setItem('pm_v90_obsidian_emerald_v1', '1');
+        if (typeof applyUserAppearanceSettings === 'function') applyUserAppearanceSettings();
+      }
+    } catch (_) {}
   })();
 
   setInterval(() => checkAndMountMainView(false), 3500);
