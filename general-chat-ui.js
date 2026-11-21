@@ -58,6 +58,15 @@
             await new Promise((r) => setTimeout(r, attempt * 1400));
             continue;
           }
+          try {
+            if (resp && resp.ok && /\/api\/research/i.test(urlStr)) {
+              resp.clone().json().then((j) => {
+                if (j && j.ok && j.authenticated && (j.planBadge || j.plan) && typeof window.__pmApplyLivePlanBadge === 'function') {
+                  window.__pmApplyLivePlanBadge(j.planBadge || j.plan.badge || j.plan.label || j.plan.name, Boolean(j.isAdmin));
+                }
+              }).catch(() => {});
+            }
+          } catch (_) {}
           return resp;
         } catch (err) {
           if (err && err.name === 'AbortError') throw err;
@@ -5166,7 +5175,7 @@
         <span class="mc-avatar-circle" style="background:${headBg};">${esc(headInitials)}</span>
         <div style="flex:1;min-width:0;">
           <div style="font-size:14px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(headName)}</div>
-          <div style="font-size:11.5px;color:#94a3b8;">${esc(headSub)}</div>
+          <div id="mc-pop-plan-sub" style="font-size:11.5px;color:#94a3b8;">${esc(headSub)}</div>
         </div>
         <span style="color:#94a3b8;font-size:16px;">›</span>
       </div>
@@ -13650,7 +13659,7 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
         <span class="mc-avatar-circle" style="background:${pillBg};">${esc(pillInitials)}</span>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13.5px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(pillName)}</div>
-          <div style="font-size:11px;color:${isGuestNow ? '#6ee7b7' : '#94a3b8'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(pillSub)}</div>
+          <div id="mc-pill-plan-sub" style="font-size:11px;color:${isGuestNow ? '#6ee7b7' : '#94a3b8'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(pillSub)}</div>
         </div>
         <span style="color:#94a3b8;font-size:14px;">⋯</span>
       </button>
@@ -14038,6 +14047,79 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
   setTimeout(syncLivePlanBadgeV852, 4500);
   window.addEventListener('focus', () => { syncLivePlanBadgeV852(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncLivePlanBadgeV852(); });
+
+  
+  // === PIXELMORPHIC v85.3 PERMANENT LIVE PLAN BADGE ENGINE ===
+  function applyLivePlanBadgeV853(rawBadge, isAdminFlag) {
+    if (!rawBadge) return;
+    const clean = String(rawBadge).replace(/^Pixelmorphic\s+/i, '').trim() || 'Free';
+    window.__pmLivePlanBadge = clean;
+    if (typeof isAdminFlag === 'boolean') window.__pmIsAdmin = isAdminFlag;
+    try {
+      const cfgNow = state.userSettings || loadUserSettings();
+      if (cfgNow) {
+        const changed = cfgNow.planBadge !== clean;
+        cfgNow.planBadge = clean;
+        if (state.authUser) state.authUser.planBadge = clean;
+        try { localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(cfgNow)); } catch (_) {}
+        if (changed) syncLeftSidebar();
+      }
+    } catch (_) {}
+    try {
+      const sess = JSON.parse(localStorage.getItem('morphic_auth_session_v62') || 'null');
+      if (sess) {
+        let dirty = false;
+        if (sess.planBadge !== clean) { sess.planBadge = clean; dirty = true; }
+        if (sess.user && sess.user.planBadge !== clean) { sess.user.planBadge = clean; dirty = true; }
+        if (dirty) localStorage.setItem('morphic_auth_session_v62', JSON.stringify(sess));
+        if (sess.user && sess.user.email) {
+          const accs = JSON.parse(localStorage.getItem('morphic_google_accounts_v62') || '[]');
+          if (Array.isArray(accs)) {
+            let accDirty = false;
+            for (const a of accs) {
+              if (String(a.email || '').toLowerCase() === String(sess.user.email || '').toLowerCase() && a.planBadge !== clean) {
+                a.planBadge = clean;
+                accDirty = true;
+              }
+            }
+            if (accDirty) localStorage.setItem('morphic_google_accounts_v62', JSON.stringify(accs));
+          }
+        }
+      }
+    } catch (_) {}
+    if (!isGuestModeActiveV66()) {
+      const pillSubEl = document.getElementById('mc-pill-plan-sub');
+      if (pillSubEl) pillSubEl.textContent = clean;
+      const popSubEl = document.getElementById('mc-pop-plan-sub');
+      if (popSubEl) popSubEl.textContent = clean;
+      const profBadge = document.getElementById('mc-prof-live-plan-badge');
+      if (profBadge) profBadge.textContent = clean.toUpperCase() + ' PLAN';
+    }
+  }
+  window.__pmApplyLivePlanBadge = applyLivePlanBadgeV853;
+  async function syncLivePlanBadgeV853() {
+    try {
+      const sess = JSON.parse(localStorage.getItem('morphic_auth_session_v62') || 'null');
+      const tok = (sess && (sess.token || sess.sessionToken)) || '';
+      if (!tok) return;
+      const r = await fetch('/api/research?chatMode=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+        body: JSON.stringify({ authAction: 'getMyQuota', sessionToken: tok })
+      });
+      const d = await r.json();
+      if (!d || !d.ok || !d.authenticated) return;
+      const raw = d.planBadge || (d.plan && (d.plan.badge || d.plan.label || d.plan.name)) || '';
+      if (raw) applyLivePlanBadgeV853(raw, Boolean(d.isAdmin));
+    } catch (_) {}
+  }
+  window.__pmSyncLivePlanBadge = syncLivePlanBadgeV853;
+  setTimeout(syncLivePlanBadgeV853, 250);
+  setTimeout(syncLivePlanBadgeV853, 1500);
+  setTimeout(syncLivePlanBadgeV853, 4000);
+  setInterval(syncLivePlanBadgeV853, 20000);
+  window.addEventListener('focus', () => { syncLivePlanBadgeV853(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncLivePlanBadgeV853(); });
 
   setInterval(() => checkAndMountMainView(false), 3500);
 

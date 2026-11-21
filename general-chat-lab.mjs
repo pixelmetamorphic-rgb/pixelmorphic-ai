@@ -210,7 +210,7 @@ function ensureUserUsage(u) {
   if (u.usage.monthKey !== k.month) { u.usage.monthKey = k.month; u.usage.imgMonth = 0; u.usage.codeMonth = 0; }
   const pid = (u.planId && PM_PLANS[u.planId]) ? u.planId : (isAdminUser(u) ? 'max' : 'free');
   if (u.planExpiresAt && Date.now() > Number(u.planExpiresAt) && !isAdminUser(u)) { u.planId = 'free'; u.planBadge = 'Free'; u.planExpiresAt = null; }
-  else { u.planId = pid; u.planBadge = PM_PLANS[pid].label; }
+  else { u.planId = pid; u.planBadge = String(PM_PLANS[pid].badge || PM_PLANS[pid].name || 'Free').replace(/^Pixelmorphic\s+/i, '').trim(); }
   return PM_PLANS[u.planId] || PM_PLANS.free;
 }
 function checkAndConsumeQuota(email, kind, isHd) {
@@ -4556,7 +4556,7 @@ export async function handleGeneralChatApi(req, res) {
         const u = (store.users||[]).find(x=>String(x.email||'').toLowerCase()===activeSession.email);
         const plan = u ? ensureUserUsage(u) : (activeSession.isAdmin ? PM_PLANS.max : PM_PLANS.free);
         if (u) saveUsersStore(store);
-        res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,authenticated:true,isAdmin:Boolean(activeSession.isAdmin),email:activeSession.email,plan,planExpiresAt:u?.planExpiresAt||null,usage:u?.usage||{chatToday:0,deepWeek:0,imgMonth:0,codeMonth:0}})); return;
+        res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,authenticated:true,planBadge:String((plan&&plan.badge)||(plan&&plan.name)||'Free').replace(/^Pixelmorphic\s+/i,'').trim(),isAdmin:Boolean(activeSession.isAdmin),email:activeSession.email,plan,planExpiresAt:u?.planExpiresAt||null,usage:u?.usage||{chatToday:0,deepWeek:0,imgMonth:0,codeMonth:0}})); return;
       }
       if (action === 'adminListUsers') {
         if (!activeSession || !activeSession.isAdmin) { res.writeHead(403,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'ADMIN_REQUIRED'})); return; }
@@ -4569,7 +4569,7 @@ export async function handleGeneralChatApi(req, res) {
         const u = (store.users||[]).find(x=>String(x.email||'').toLowerCase()===String(payload.targetEmail||'').trim().toLowerCase());
         const pid = PM_PLANS[payload.planId] ? payload.planId : 'free';
         if (!u) { res.writeHead(404,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false,error:'User not found'})); return; }
-        u.planId = pid; u.planBadge = PM_PLANS[pid].label; u.planExpiresAt = (pid!=='free' && Number(payload.days||30)>0) ? (Date.now()+Number(payload.days||30)*86400000) : null;
+        u.planId = pid; u.planBadge = String(PM_PLANS[pid].badge || PM_PLANS[pid].name || 'Free').replace(/^Pixelmorphic\s+/i, '').trim(); u.planExpiresAt = (pid!=='free' && Number(payload.days||30)>0) ? (Date.now()+Number(payload.days||30)*86400000) : null;
         saveUsersStore(store); res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true})); return;
       }
       if (action === 'adminResetQuota') {
