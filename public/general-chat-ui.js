@@ -14533,7 +14533,7 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
             const r = await fetch('/api/research?chatMode=1', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ authAction: 'verifyOtp', email: pendingEmail, otp: code })
+              body: JSON.stringify({ authAction: 'verifyOtp', email: pendingEmail, otpCode: code, otp: code })
             });
             const d = await r.json();
             if (!d.ok) { setMsg(d.error || 'Invalid OTP.'); submitBtn.disabled = false; return; }

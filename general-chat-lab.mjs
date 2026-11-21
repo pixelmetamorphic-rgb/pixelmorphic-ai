@@ -4923,7 +4923,7 @@ export async function handleGeneralChatApi(req, res) {
 
       if (action === 'verifyOtp') {
         const email = String(payload.email || '').trim().toLowerCase();
-        const enteredOtp = String(payload.otpCode || '').replace(/\s+/g, '');
+        const enteredOtp = String(payload.otpCode || payload.otp || payload.code || '').replace(/\s+/g, '');
         const pending = PENDING_OTP_MAP.get(email);
 
         if (!pending) {
