@@ -13,7 +13,7 @@ async function backend(path, body) {
 }
 function connectionLabel() {
   if (!connection) return 'API setup';
-  if (connection.ready) return 'API configured';
+  if (connection.ready) return 'Cloud Online';
   if (!connection.keyConfigured) return 'API key needed';
   if (!connection.model) return 'Model ID needed';
   return 'Generation disabled';
@@ -40,7 +40,7 @@ function paintConnection() {
     '<p class="muted">Configure AI_API_KEY and AI_MODEL in the server .env file, then restart. Set AI_ENABLE_GENERATION=true only when ready for provider charges. Keys are never entered on this page.</p>'+
     '<div class="info-bar">The server reports configuration readiness. A successful response verifies a request; customer wallet billing and cost estimates are not active.</div>'+
     '<div class="actions"><button id="refresh-api">Refresh status</button><button id="list-models" '+(!connection?.keyConfigured?'disabled':'')+'>Fetch model catalogue</button><button id="show-logs">Show request logs</button></div>'+
-    '<p class="subnote">Catalogue lookup does not request generation. With fal, it reads the public OpenRouter catalogue; listing does not confirm fal access or pricing.</p><pre id="api-detail" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:300px;overflow:auto;font-size:12px"></pre>';
+    '<p class="subnote">Catalogue lookup does not request generation. With fal, it reads the public Pixelmorphic Engine catalogue; listing does not confirm fal access or pricing.</p><pre id="api-detail" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:300px;overflow:auto;font-size:12px"></pre>';
   document.getElementById('refresh-api').onclick=checkConnection;
   document.getElementById('list-models').onclick=async e=>{
     e.target.disabled=true; const target=document.getElementById('api-detail'); target.textContent='Fetching model IDs…';

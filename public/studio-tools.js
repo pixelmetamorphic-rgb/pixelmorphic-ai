@@ -411,6 +411,7 @@
 ;
 ;
 ;
+;
 /* ============================================================================
  * PIXELMORPHIC AI — MORPHIC RESEARCH LAB PRO UI (v11.6 - Researcher Edition)
  * Fixes & Upgrades:
@@ -11055,7 +11056,7 @@ Please check your connection or retry in a few seconds. No placeholder report wa
             <div class="mc-avatar-circle" style="width:62px;height:62px;font-size:22px;background:${cfg.avatarBg};">${esc(cfg.initials || 'HS')}</div>
             <div style="flex:1;">
               <div style="font-size:16px;font-weight:800;color:#ffffff;">${esc(cfg.displayName)}</div>
-              <div style="font-size:12px;color:#6ee7b7;margin-top:2px;">${esc(cfg.roleTitle)}</div>
+              
               <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
                 <span style="font-size:11px;color:#94a3b8;">Avatar Color:</span>
                 ${avatarColors.map((bg) => `<button type="button" class="mc-color-swatch ${cfg.avatarBg === bg ? 'active' : ''}" style="width:22px;height:22px;background:${bg};" data-av-bg="${bg}"></button>`).join('')}
@@ -17277,6 +17278,111 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     setInterval(refreshLiveQuotaV87, 15000);
     window.addEventListener('focus', refreshLiveQuotaV87);
     window.addEventListener('hashchange', () => setTimeout(enforceProfileBadgeDom, 250));
+  })();
+
+  
+  // === PIXELMORPHIC v87.2: CLEAN CUSTOMER BRANDING + ROLE REMOVAL + LIVE BILLING RENDERER ===
+  (function initPmV872Clean() {
+    if (window.__pmV872Init) return;
+    window.__pmV872Init = true;
+    if (!document.getElementById('pm-v872-clean-css')) {
+      const st = document.createElement('style');
+      st.id = 'pm-v872-clean-css';
+      st.textContent = `
+        #mc-auth-role-input, label[for="mc-auth-role-input"],
+        #mc-prof-role, .pm-hide-role-wrap { display: none !important; }
+      `;
+      document.head.appendChild(st);
+    }
+    function scrubLegacyOwnerAndApiUi() {
+      // Hide any legacy "Harsh's workspace / Local owner workspace" or "API configured" host elements
+      document.querySelectorAll('div, footer, aside, header, span, p').forEach((el) => {
+        if (el.id === 'mc-profile-dock' || el.closest('#mc-profile-dock') || el.closest('#mc-settings-modal-backdrop')) return;
+        const txt = (el.textContent || '').trim();
+        if (txt.length > 0 && txt.length < 120) {
+          if (/Harsh['?]ss+workspace|Locals+owners+workspace/i.test(txt) && el.children.length <= 5) {
+            el.style.setProperty('display', 'none', 'important');
+          }
+          if (/^APIs+(configured|connected|key|status)/i.test(txt) && el.children.length <= 2) {
+            el.style.setProperty('display', 'none', 'important');
+          }
+        }
+      });
+      // Hide Role field container inside Profile or Sign Up if rendered
+      const roleSel = document.getElementById('mc-auth-role-input');
+      if (roleSel && roleSel.parentElement) roleSel.parentElement.style.display = 'none';
+      const roleInp = document.getElementById('mc-prof-role');
+      if (roleInp && roleInp.parentElement) roleInp.parentElement.style.display = 'none';
+    }
+    async function paintBillingBoxV872() {
+      const box = document.getElementById('pm-v85-quota-box');
+      if (!box) return;
+      if (box.dataset.v872Loaded === '1' && !/Loading/i.test(box.textContent || '')) return;
+      try {
+        const sess = JSON.parse(localStorage.getItem('morphic_auth_session_v62') || 'null');
+        const tok = (sess && (sess.token || sess.sessionToken)) || '';
+        const headers = { 'Content-Type': 'application/json' };
+        if (tok) headers['Authorization'] = 'Bearer ' + tok;
+        const r = await fetch('/api/research?chatMode=1', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ authAction: 'getMyQuota', sessionToken: tok })
+        });
+        const d = await r.json();
+        if (!d || !d.ok || !d.plan) {
+          box.innerHTML = '<div style="font-size:13px;color:#fca5a5;">Please sign in to view your live plan &amp; usage.</div>';
+          return;
+        }
+        window.__pmLiveQuota = d;
+        const p = d.plan;
+        const u = d.usage || {};
+        const pName = String(p.name || 'Pixelmorphic Free');
+        const badge = String(d.planBadge || p.badge || pName).replace(/^Pixelmorphic\s+/i, '').trim() || 'Free';
+        const chatMax = p.chatPerDay || p.chat || 10;
+        const deepMax = p.deepPerWeek || p.deep || 1;
+        const imgMax = p.imgPerMonth || p.img || 5;
+        const codeMax = p.codePerMonth || p.code || 10;
+        box.dataset.v872Loaded = '1';
+        box.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+            <div>
+              <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:#6ee7b7;text-transform:uppercase;">Active Subscription</div>
+              <div style="font-size:20px;font-weight:800;color:#ffffff;margin-top:2px;">${esc(pName)}</div>
+            </div>
+            <span style="padding:5px 14px;border-radius:999px;background:#10b981;color:#052e16;font-size:12px;font-weight:800;letter-spacing:.04em;">${esc(badge.toUpperCase())} PLAN</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;">
+            <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(16,185,129,0.22);border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;color:#94a3b8;">Chat + Study Today</div>
+              <div style="font-size:15px;font-weight:800;color:#6ee7b7;margin-top:3px;">${u.chatToday || 0} / ${chatMax}</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(16,185,129,0.22);border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;color:#94a3b8;">Deep Research / Wk</div>
+              <div style="font-size:15px;font-weight:800;color:#6ee7b7;margin-top:3px;">${u.deepWeek || 0} / ${deepMax}</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(16,185,129,0.22);border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;color:#94a3b8;">Images / Mo</div>
+              <div style="font-size:15px;font-weight:800;color:#6ee7b7;margin-top:3px;">${u.imgMonth || 0} / ${imgMax}</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(16,185,129,0.22);border-radius:10px;padding:10px 12px;">
+              <div style="font-size:11px;color:#94a3b8;">Code Credits / Mo</div>
+              <div style="font-size:15px;font-weight:800;color:#6ee7b7;margin-top:3px;">${u.codeMonth || 0} / ${codeMax}</div>
+            </div>
+          </div>
+        `;
+        if (d.authenticated && typeof window.__pmApplyLivePlanBadge === 'function') {
+          window.__pmApplyLivePlanBadge(badge, Boolean(d.isAdmin));
+        }
+      } catch (e) {
+        box.innerHTML = '<div style="font-size:13px;color:#fca5a5;">Unable to load live usage right now. Please refresh.</div>';
+      }
+    }
+    setInterval(() => {
+      scrubLegacyOwnerAndApiUi();
+      const box = document.getElementById('pm-v85-quota-box');
+      if (box && /Loading your live plan/i.test(box.textContent || '')) paintBillingBoxV872();
+    }, 600);
+    setTimeout(scrubLegacyOwnerAndApiUi, 200);
   })();
 
   setInterval(() => checkAndMountMainView(false), 3500);

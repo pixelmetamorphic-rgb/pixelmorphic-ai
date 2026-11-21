@@ -190,10 +190,10 @@ function createServerSession(userRecord) {
 
 
 const PM_PLANS = {
-  free:     { id: 'free',     name: 'Pixelmorphic Free', badge: 'Free', priceInr: 0,    chatPerDay: 10,  deepPerWeek: 1,  imgPerMonth: 5,   codePerMonth: 10,   hdImages: false },
-  pro:      { id: 'pro',      name: 'Pixelmorphic Pro',  badge: 'Pro',  priceInr: 500,  chatPerDay: 50,  deepPerWeek: 1,  imgPerMonth: 50,  codePerMonth: 100,  hdImages: true },
-  pro_plus: { id: 'pro_plus', name: 'Pixelmorphic Pro+', badge: 'Pro+', priceInr: 900,  chatPerDay: 100, deepPerWeek: 2,  imgPerMonth: 100, codePerMonth: 200,  hdImages: true },
-  max:      { id: 'max',      name: 'Pixelmorphic Max',  badge: 'Max',  priceInr: 2999, chatPerDay: 500, deepPerWeek: 30, imgPerMonth: 200, codePerMonth: 1000, hdImages: true }
+  free:     { id: 'free',     name: 'Pixelmorphic Free', badge: 'Free', priceInr: 0,    chatPerDay: 10,  chat: 10,  deepPerWeek: 1,  deep: 1,  imgPerMonth: 5,   img: 5,   codePerMonth: 10,   code: 10,   hdImages: false },
+  pro:      { id: 'pro',      name: 'Pixelmorphic Pro',  badge: 'Pro',  priceInr: 500,  chatPerDay: 50,  chat: 50,  deepPerWeek: 1,  deep: 1,  imgPerMonth: 50,  img: 50,  codePerMonth: 100,  code: 100,  hdImages: true },
+  pro_plus: { id: 'pro_plus', name: 'Pixelmorphic Pro+', badge: 'Pro+', priceInr: 900,  chatPerDay: 100, chat: 100, deepPerWeek: 2,  deep: 2,  imgPerMonth: 100, img: 100, codePerMonth: 200,  code: 200,  hdImages: true },
+  max:      { id: 'max',      name: 'Pixelmorphic Max',  badge: 'Max',  priceInr: 2999, chatPerDay: 500, chat: 500, deepPerWeek: 30, deep: 30, imgPerMonth: 200, img: 200, codePerMonth: 1000, code: 1000, hdImages: true }
 };
 const BLOCKED_TEMP_DOMAINS = new Set(['tempmail.com','temp-mail.org','guerrillamail.com','10minutemail.com','mailinator.com','yopmail.com','trashmail.com','sharklasers.com','dispostable.com','maildrop.cc','getnada.com','mohmal.com']);
 function getDateKeys() {
