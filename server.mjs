@@ -1,4 +1,4 @@
-﻿import { handleGeneralChatApi } from './general-chat-lab.mjs';
+﻿import { handleGeneralChatApi, getAuthenticatedSession, checkAndConsumeQuota, computeCodeStudioCost } from './general-chat-lab.mjs';
 import './research-lab.mjs';
 import http from 'node:http';
 import { createUltraWorkflow, STUDIO_VERSION, PLANNER_VERSION, DEFAULT_ENGINES, WEBSITE_SYSTEM } from './ultra-workflow.mjs';
@@ -372,6 +372,39 @@ export function createApp(config, { fetchImpl = fetch, audit = diskAudit } = {})
   }
 
   return http.createServer(async (req, res) => {
+
+  // PM_V87_SRV_QUOTA: Enforce Deep Research & Code Studio quotas server-side
+  if (req.method === 'POST') {
+    const _uStr = String(req.url || '');
+    const _isDeep = _uStr.startsWith('/api/research') && !_uStr.includes('chatMode=1') && !_uStr.includes('storage=1');
+    const _isCodeApi = _uStr.startsWith('/api/generate') || _uStr.startsWith('/api/ultra');
+    if (_isDeep || _isCodeApi) {
+      const _sess = getAuthenticatedSession(req, null);
+      if (!_sess || !_sess.email) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Please sign in to use this workspace.' }));
+        return;
+      }
+      if (_isDeep) {
+        const _dq = checkAndConsumeQuota(_sess.email, 'deep', false, 1);
+        if (!_dq.ok) {
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, quotaExceeded: true, error: _dq.error }));
+          return;
+        }
+      } else if (_isCodeApi) {
+        const _isEdit = /revise|edit|fix/i.test(_uStr);
+        const _cc = computeCodeStudioCost(_sess.email, _uStr, _isEdit);
+        const _cq = checkAndConsumeQuota(_sess.email, 'code', false, _cc);
+        if (!_cq.ok) {
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, quotaExceeded: true, error: _cq.error }));
+          return;
+        }
+      }
+    }
+  }
+
   if (req.url && req.url.startsWith('/api/research')) { handleResearchApi(req, res); return; }
 
     res.setHeader('X-Content-Type-Options', 'nosniff');

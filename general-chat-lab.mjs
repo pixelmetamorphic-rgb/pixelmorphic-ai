@@ -213,31 +213,55 @@ function ensureUserUsage(u) {
   else { u.planId = pid; u.planBadge = String(PM_PLANS[pid].badge || PM_PLANS[pid].name || 'Free').replace(/^Pixelmorphic\s+/i, '').trim(); }
   return PM_PLANS[u.planId] || PM_PLANS.free;
 }
-function checkAndConsumeQuota(email, kind, isHd) {
-  if (!email) return { ok: true, plan: PM_PLANS.free };
+export function checkAndConsumeQuota(email, kind, isHd = false, cost = 1) {
   const store = loadUsersStore();
-  const u = (store.users || []).find(x => String(x.email||'').toLowerCase() === String(email).toLowerCase());
-  if (!u) return { ok: true, plan: PM_PLANS.free };
-  if (isAdminUser(u)) {
-    const plan = ensureUserUsage(u);
-    if (kind==='chat') u.usage.chatToday++; if (kind==='deep') u.usage.deepWeek++;
-    if (kind==='image') u.usage.imgMonth++; if (kind==='code') u.usage.codeMonth++;
-    saveUsersStore(store); return { ok: true, isAdmin: true, plan, usage: u.usage };
-  }
-  if (u.suspended) return { ok: false, status: 403, error: 'Account suspended by administrator.' };
+  const norm = String(email || '').trim().toLowerCase();
+  if (!norm) return { ok: false, error: 'Please sign in to use Pixelmorphic AI.' };
+  const u = (store.users || []).find(x => String(x.email || '').toLowerCase() === norm);
+  if (!u) return { ok: false, error: 'Account not found. Please sign in again.' };
+  if (u.suspended) return { ok: false, error: 'Your account is suspended. Contact support@pixelmorphicai.co.' };
   const plan = ensureUserUsage(u);
-  if (plan.id==='free' && store.freeTierEnabled===false) return { ok: false, status: 429, error: 'High demand on Free tier. Upgrade to Pro (Rs.500/mo).' };
-  if (kind==='chat' && u.usage.chatToday>=plan.dailyChat) return { ok: false, status: 429, error: 'Daily chat limit reached ('+plan.dailyChat+'/day). Upgrade in Settings -> Billing & Plan.' };
-  if (kind==='deep' && u.usage.deepWeek>=plan.weeklyDeep) return { ok: false, status: 429, error: 'Weekly Deep Search limit reached ('+plan.weeklyDeep+'/week). Upgrade in Settings -> Billing & Plan.' };
-  if (kind==='image') {
-    if (isHd && !plan.allowHd) return { ok: false, status: 403, error: 'HD images require Pro (Rs.500/mo) or higher.' };
-    if (u.usage.imgMonth>=plan.monthlyImg) return { ok: false, status: 429, error: 'Monthly image limit reached ('+plan.monthlyImg+'/mo). Upgrade in Settings -> Billing & Plan.' };
+  if (plan.id === 'free' && store.globalSettings && store.globalSettings.freeTierPaused) {
+    return { ok: false, error: 'Free tier is temporarily paused. Upgrade to Pro to continue.' };
   }
-  if (kind==='code' && u.usage.codeMonth>=plan.monthlyCode) return { ok: false, status: 429, error: 'Monthly Code credits reached ('+plan.monthlyCode+'/mo). Upgrade in Settings -> Billing & Plan.' };
-  if (kind==='chat') u.usage.chatToday++; if (kind==='deep') u.usage.deepWeek++;
-  if (kind==='image') u.usage.imgMonth++; if (kind==='code') u.usage.codeMonth++;
-  u.lastActiveAt = new Date().toISOString(); saveUsersStore(store);
-  return { ok: true, plan, usage: u.usage };
+  const amt = Math.max(1, Number(cost) || 1);
+  if (kind === 'chat') {
+    if ((u.usage.chatToday || 0) + amt > plan.chatPerDay) {
+      return { ok: false, error: 'Daily Chat & Study limit reached (' + u.usage.chatToday + '/' + plan.chatPerDay + ' on ' + plan.name + '). Upgrade your plan in Settings -> Billing & Plan.' };
+    }
+    u.usage.chatToday = (u.usage.chatToday || 0) + amt;
+  } else if (kind === 'deep') {
+    if ((u.usage.deepWeek || 0) + amt > plan.deepPerWeek) {
+      return { ok: false, error: 'Deep Research limit reached (' + u.usage.deepWeek + '/' + plan.deepPerWeek + ' on ' + plan.name + '). Upgrade your plan in Settings -> Billing & Plan.' };
+    }
+    u.usage.deepWeek = (u.usage.deepWeek || 0) + amt;
+  } else if (kind === 'image') {
+    if (isHd && !plan.hdImages) {
+      return { ok: false, error: 'HD Image generation is locked on the Free plan. Switch to Standard quality or upgrade to Pro.' };
+    }
+    if ((u.usage.imgMonth || 0) + amt > plan.imgPerMonth) {
+      return { ok: false, error: 'Monthly Image limit reached (' + u.usage.imgMonth + '/' + plan.imgPerMonth + ' on ' + plan.name + '). Upgrade your plan in Settings -> Billing & Plan.' };
+    }
+    u.usage.imgMonth = (u.usage.imgMonth || 0) + amt;
+  } else if (kind === 'code') {
+    const used = u.usage.codeMonth || 0;
+    if (used + amt > plan.codePerMonth) {
+      return { ok: false, error: 'Insufficient Code Credits (Need ' + amt + ', left ' + Math.max(0, plan.codePerMonth - used) + '/' + plan.codePerMonth + ' on ' + plan.name + '). Upgrade in Settings -> Billing & Plan.' };
+    }
+    u.usage.codeMonth = used + amt;
+  }
+  u.lastActiveAt = new Date().toISOString();
+  saveUsersStore(store);
+  return { ok: true, plan, usage: u.usage, cost: amt, remainingCode: Math.max(0, plan.codePerMonth - (u.usage.codeMonth || 0)) };
+}
+export function computeCodeStudioCost(email, promptText, isEdit) {
+  const store = loadUsersStore();
+  const u = (store.users || []).find(x => String(x.email || '').toLowerCase() === String(email || '').trim().toLowerCase());
+  const pid = (u && u.planId) || 'free';
+  if (isEdit) return pid === 'max' ? 2 : 5;
+  const txt = String(promptText || '');
+  const isMajor = txt.length > 140 || /dashboard|ecommerce|e-commerce|full.?stack|multi.?page|saas|crm|erp|clone|portfolio|game|platform|booking|admin|website|landing|store|portal/i.test(txt);
+  return isMajor ? 10 : 5;
 }
 
 function isAdminUser(userRecord) {
@@ -4893,6 +4917,20 @@ export async function handleGeneralChatApi(req, res) {
 
       // Route 0: Morphic Code Studio v57.0 (High-Speed Zero-Truncation Architect + Universal Self-Healing Runtime)
       if (payload.codeStudioMode) {
+        // PM_V87_CODE_QUOTA
+        if (!activeSession || !activeSession.email) {
+          res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Please sign in to use Code Studio.' }));
+          return;
+        }
+        const _isCodeEdit = Boolean(String(payload.currentCode || '').trim());
+        const _codeCost = computeCodeStudioCost(activeSession.email, rawMessage, _isCodeEdit);
+        const _codeQ = checkAndConsumeQuota(activeSession.email, 'code', false, _codeCost);
+        if (!_codeQ.ok) {
+          res.writeHead(429, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, quotaExceeded: true, error: _codeQ.error }));
+          return;
+        }
         const currentHtml = String(payload.currentCode || '').trim();
         const activeTier = resolveModelTier(chatModel || 'morphic-chat-ultra');
         const codeTierModel = chatModel || 'morphic-chat-ultra';
@@ -4997,6 +5035,18 @@ export async function handleGeneralChatApi(req, res) {
 
       // Route A: Pure Image or Infographic Generation (if not a Multi-Task Text + Image request)
       if ((actionMode === 'image' || intent.wantsImage) && !intent.isMultiTaskImageAndText) {
+        // PM_V87_IMG_QUOTA
+        if (!activeSession || !activeSession.email) {
+          res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Please sign in to generate images.' }));
+          return;
+        }
+        const _imgQ = checkAndConsumeQuota(activeSession.email, 'image', String(imageQuality || '').toLowerCase() === 'hd', 1);
+        if (!_imgQ.ok) {
+          res.writeHead(429, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, quotaExceeded: true, error: _imgQ.error }));
+          return;
+        }
         const imgResult = await generateMorphicImage(spellCheck.repaired, imageQuality, aspectRatio, chatModel);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -5011,6 +5061,18 @@ export async function handleGeneralChatApi(req, res) {
       }
 
       // Route B: Illustrated eBook Generation
+      // PM_V87_CHAT_QUOTA
+      if (!activeSession || !activeSession.email) {
+        res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Please sign in to chat with Pixelmorphic AI.' }));
+        return;
+      }
+      const _chatQ = checkAndConsumeQuota(activeSession.email, 'chat', false, 1);
+      if (!_chatQ.ok) {
+        res.writeHead(429, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, quotaExceeded: true, error: _chatQ.error }));
+        return;
+      }
       if (actionMode === 'ebook' || intent.wantsEbook) {
         const ebook = await generateIllustratedEbook(spellCheck.repaired, imageQuality, lang, chatModel);
         res.writeHead(200, { 'Content-Type': 'application/json' });

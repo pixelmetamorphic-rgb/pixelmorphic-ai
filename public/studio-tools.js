@@ -409,6 +409,7 @@
 ;
 ;
 ;
+;
 /* ============================================================================
  * PIXELMORPHIC AI — MORPHIC RESEARCH LAB PRO UI (v11.6 - Researcher Edition)
  * Fixes & Upgrades:
@@ -3109,6 +3110,16 @@ Please check your connection or retry in a few seconds. No placeholder report wa
                   window.__pmApplyLivePlanBadge(j.planBadge || j.plan.badge || j.plan.label || j.plan.name, Boolean(j.isAdmin));
                 }
               }).catch(() => {});
+            }
+          } catch (_) {}
+          // PM_V87_429_HOOK
+          try {
+            if (resp && resp.status === 429) {
+              resp.clone().json().then((j) => {
+                if (j && j.error && typeof showDownloadToast === 'function') showDownloadToast(j.error);
+              }).catch(() => {});
+            } else if (resp && resp.ok && /\/api\/(research|generate|ultra)/i.test(urlStr)) {
+              setTimeout(() => { if (typeof window.__pmRefreshLiveQuota === 'function') window.__pmRefreshLiveQuota(); }, 600);
             }
           } catch (_) {}
           return resp;
@@ -17164,6 +17175,108 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
   setInterval(syncLivePlanBadgeV853, 20000);
   window.addEventListener('focus', () => { syncLivePlanBadgeV853(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncLivePlanBadgeV853(); });
+
+  
+  // === PIXELMORPHIC v87.0 STRICT QUOTA UI, CODE CREDITS PILL, PROFILE BADGE LOCK & FORMULA DARK FIX ===
+  (function initPmV87Engine() {
+    if (window.__pmV87Init) return;
+    window.__pmV87Init = true;
+    // 1. Fix white-on-white formula/equation boxes in Research Lab
+    if (!document.getElementById('pm-v87-dark-formula-css')) {
+      const st = document.createElement('style');
+      st.id = 'pm-v87-dark-formula-css';
+      st.textContent = `
+        .vr-report-body pre, .vr-report-body code, .vr-report-body blockquote,
+        .vr-report-body .katex-display, .vr-report-body .math-block,
+        #vr-root pre, #vr-root blockquote, #vr-root .katex-display,
+        .mc-msg-content .katex-display, .vr-card pre, .vr-section pre {
+          background: #0b1420 !important;
+          color: #e2e8f0 !important;
+          border: 1px solid rgba(16, 185, 129, 0.35) !important;
+          border-radius: 10px !important;
+          padding: 10px 14px !important;
+          overflow-x: auto !important;
+        }
+        .vr-report-body pre *, #vr-root pre *, .vr-report-body .katex-display *, #vr-root .katex-display * {
+          color: #e2e8f0 !important;
+        }
+        #pm-v87-code-credits-pill {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+          background: rgba(16, 185, 129, 0.16); border: 1px solid rgba(16, 185, 129, 0.45);
+          color: #6ee7b7; margin: 6px 0; white-space: nowrap;
+        }
+      `;
+      document.head.appendChild(st);
+    }
+    function renderCodeCreditsPill() {
+      const q = window.__pmLiveQuota;
+      if (!q || !q.plan) return;
+      const total = Number(q.plan.codePerMonth || 10);
+      const used = Number((q.usage && q.usage.codeMonth) || 0);
+      const left = Math.max(0, total - used);
+      const editCost = q.plan.id === 'max' ? 2 : 5;
+      const txt = 'Code Credits: ' + left + ' / ' + total + ' left  |  Small: 5  |  Major: 10  |  Edit: ' + editCost;
+      let pill = document.getElementById('pm-v87-code-credits-pill');
+      const host = document.getElementById('studio-status') || document.getElementById('mc-code-studio-header') || document.querySelector('[data-code-studio-bar]') || document.querySelector('#studio-projects')?.parentElement;
+      if (host) {
+        if (!pill) {
+          pill = document.createElement('div');
+          pill.id = 'pm-v87-code-credits-pill';
+          host.parentElement ? host.parentElement.insertBefore(pill, host) : host.prepend(pill);
+        }
+        pill.textContent = txt;
+      }
+    }
+    function enforceProfileBadgeDom() {
+      const badge = window.__pmLivePlanBadge;
+      if (!badge || isGuestModeActiveV66()) return;
+      const pillSubEl = document.getElementById('mc-pill-plan-sub');
+      if (pillSubEl && pillSubEl.textContent.trim() !== badge) pillSubEl.textContent = badge;
+      const pillBtn = document.getElementById('mc-profile-pill-btn');
+      if (pillBtn) {
+        const divs = pillBtn.querySelectorAll('div');
+        if (divs.length >= 3 && divs[2].textContent.trim() !== badge) divs[2].textContent = badge;
+      }
+      const popSubEl = document.getElementById('mc-pop-plan-sub');
+      if (popSubEl && popSubEl.textContent.trim() !== badge) popSubEl.textContent = badge;
+      const profBadge = document.getElementById('mc-prof-live-plan-badge');
+      if (profBadge) profBadge.textContent = badge.toUpperCase() + ' PLAN';
+      renderCodeCreditsPill();
+    }
+    async function refreshLiveQuotaV87() {
+      try {
+        const sess = JSON.parse(localStorage.getItem('morphic_auth_session_v62') || 'null');
+        const tok = (sess && (sess.token || sess.sessionToken)) || '';
+        const headers = { 'Content-Type': 'application/json' };
+        if (tok) headers['Authorization'] = 'Bearer ' + tok;
+        const r = await fetch('/api/research?chatMode=1', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ authAction: 'getMyQuota', sessionToken: tok })
+        });
+        const d = await r.json();
+        if (!d || !d.ok || !d.plan) return;
+        window.__pmLiveQuota = d;
+        if (d.authenticated) {
+          const clean = String(d.planBadge || d.plan.badge || d.plan.name || 'Free').replace(/^Pixelmorphic\s+/i, '').trim() || 'Free';
+          window.__pmLivePlanBadge = clean;
+          window.__pmIsAdmin = Boolean(d.isAdmin);
+          if (typeof window.__pmApplyLivePlanBadge === 'function') {
+            window.__pmApplyLivePlanBadge(clean, Boolean(d.isAdmin));
+          }
+          enforceProfileBadgeDom();
+        }
+      } catch (_) {}
+    }
+    window.__pmRefreshLiveQuota = refreshLiveQuotaV87;
+    setTimeout(refreshLiveQuotaV87, 300);
+    setTimeout(refreshLiveQuotaV87, 1500);
+    setInterval(enforceProfileBadgeDom, 1000);
+    setInterval(refreshLiveQuotaV87, 15000);
+    window.addEventListener('focus', refreshLiveQuotaV87);
+    window.addEventListener('hashchange', () => setTimeout(enforceProfileBadgeDom, 250));
+  })();
 
   setInterval(() => checkAndMountMainView(false), 3500);
 
