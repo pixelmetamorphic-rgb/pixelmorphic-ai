@@ -373,6 +373,18 @@ export function createApp(config, { fetchImpl = fetch, audit = diskAudit } = {})
 
   return http.createServer(async (req, res) => {
 
+  // PM_V89_LEGAL_ROUTES: Serve /privacy and /terms cleanly for Google OAuth & Search indexing
+  if (req.method === 'GET' && (req.url === '/privacy' || req.url === '/privacy/' || req.url === '/terms' || req.url === '/terms/')) {
+    try {
+      const fName = req.url.startsWith('/privacy') ? 'privacy.html' : 'terms.html';
+      const content = await readFile(join(dirname(fileURLToPath(import.meta.url)), 'public', fName), 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+      res.end(content);
+      return;
+    } catch (_) {}
+  }
+
+
   // PM_V87_SRV_QUOTA: Enforce Deep Research & Code Studio quotas server-side
   if (req.method === 'POST') {
     const _uStr = String(req.url || '');

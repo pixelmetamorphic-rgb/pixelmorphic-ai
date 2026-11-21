@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="20%" r="75%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.28"/>
+      <stop offset="65%" stop-color="#060c0a"/>
+      <stop offset="100%" stop-color="#040807"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#040807"/>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="70" y="70" width="96" height="96" rx="24" fill="#0b1f18" stroke="#10b981" stroke-width="3"/>
+  <text x="118" y="132" text-anchor="middle" fill="#ffffff" font-family="Arial,sans-serif" font-weight="900" font-size="42">PM</text>
+  <text x="70" y="255" fill="#ffffff" font-family="Arial,sans-serif" font-weight="900" font-size="72">Pixelmorphic AI</text>
+  <text x="70" y="325" fill="#6ee7b7" font-family="Arial,sans-serif" font-weight="700" font-size="32">All-in-One AI Chat, Study, Deep Research, Image &amp; Code Studio</text>
+  <text x="70" y="545" fill="#94a3b8" font-family="Arial,sans-serif" font-weight="600" font-size="26">https://pixelmorphicai.co  |  by Metamorphic Pixel</text>
+</svg>
