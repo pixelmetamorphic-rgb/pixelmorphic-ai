@@ -252,6 +252,7 @@ export function checkAndConsumeQuota(email, kind, isHd = false, cost = 1) {
   }
   u.lastActiveAt = new Date().toISOString();
   saveUsersStore(store);
+  console.log("[PM_V88_QUOTA_LOG]", norm, kind, "cost=" + amt, JSON.stringify(u.usage));
   return { ok: true, plan, usage: u.usage, cost: amt, remainingCode: Math.max(0, plan.codePerMonth - (u.usage.codeMonth || 0)) };
 }
 export function computeCodeStudioCost(email, promptText, isEdit) {
@@ -4576,7 +4577,7 @@ export async function handleGeneralChatApi(req, res) {
       const action = String(payload.authAction || '').trim();
 
       if (action === 'getMyQuota') {
-        if (!activeSession) { res.writeHead(200,{...corsHeaders,'Content-Type':'application/json'}); res.end(JSON.stringify({ok:true,authenticated:false,isAdmin:false,plan:PM_PLANS.free,usage:{chatToday:0,deepWeek:0,imgMonth:0,codeMonth:0}})); return; }
+        if (!activeSession) { res.writeHead(200,{...corsHeaders,'Content-Type':'application/json','Cache-Control':'no-store, no-cache, must-revalidate'}); res.end(JSON.stringify({ok:true,authenticated:false,isAdmin:false,plan:PM_PLANS.free,usage:{chatToday:0,deepWeek:0,imgMonth:0,codeMonth:0}})); return; }
         const u = (store.users||[]).find(x=>String(x.email||'').toLowerCase()===activeSession.email);
         const plan = u ? ensureUserUsage(u) : (activeSession.isAdmin ? PM_PLANS.max : PM_PLANS.free);
         if (u) saveUsersStore(store);
@@ -5196,6 +5197,7 @@ export async function handleGeneralChatApi(req, res) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           ok: true,
+          liveQuota: (typeof _imgQ !== 'undefined' && _imgQ && _imgQ.ok) ? { plan: _imgQ.plan, usage: _imgQ.usage } : null,
           responseType: 'image',
           query: rawMessage,
           image: imgResult,
@@ -5368,7 +5370,8 @@ ${studyMeta && studyMeta.isStudyMode ? buildStudyWorkspaceInstruction(studyMeta,
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         ok: true,
-        responseType: multiTaskImage ? 'multitask-image-chat' : (actionMode === 'pdf' || intent.wantsPdf ? 'pdf-ready' : 'chat'),
+        liveQuota: (typeof _chatQ !== 'undefined' && _chatQ && _chatQ.ok) ? { plan: _chatQ.plan, usage: _chatQ.usage } : null,
+          responseType: multiTaskImage ? 'multitask-image-chat' : (actionMode === 'pdf' || intent.wantsPdf ? 'pdf-ready' : 'chat'),
         query: rawMessage,
         sources: [],
         backendVerifiedSourcesCount: sources.length,

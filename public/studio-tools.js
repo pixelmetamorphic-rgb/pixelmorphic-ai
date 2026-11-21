@@ -413,6 +413,7 @@
 ;
 ;
 ;
+;
 /* ============================================================================
  * PIXELMORPHIC AI — MORPHIC RESEARCH LAB PRO UI (v11.6 - Researcher Edition)
  * Fixes & Upgrades:
@@ -3109,6 +3110,7 @@ Please check your connection or retry in a few seconds. No placeholder report wa
           try {
             if (resp && resp.ok && /\/api\/research/i.test(urlStr)) {
               resp.clone().json().then((j) => {
+                if (j && j.liveQuota && typeof window.__pmForcePaintLiveUsage === "function") { window.__pmForcePaintLiveUsage(j.liveQuota); }
                 if (j && j.ok && j.authenticated && (j.planBadge || j.plan) && typeof window.__pmApplyLivePlanBadge === 'function') {
                   window.__pmApplyLivePlanBadge(j.planBadge || j.plan.badge || j.plan.label || j.plan.name, Boolean(j.isAdmin));
                 }
@@ -17644,6 +17646,93 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
         openPremiumAuthModalV88('password');
       }
     }, 650);
+  })();
+
+  
+  // === PIXELMORPHIC v88.1 REAL-TIME USAGE PAINT & AUTO-REFRESH ===
+  (function initPmV881UsageSync() {
+    if (window.__pmV881UsageInit) return;
+    window.__pmV881UsageInit = true;
+    function paintQuotaHtmlV881(box, d) {
+      if (!box || !d || !d.plan) return;
+      const p = d.plan;
+      const u = d.usage || {};
+      const pName = String(p.name || 'Pixelmorphic Free');
+      const badge = String(d.planBadge || p.badge || pName).replace(/^Pixelmorphic\s+/i, '').trim() || 'Free';
+      const chatMax = p.chatPerDay || p.chat || 10;
+      const deepMax = p.deepPerWeek || p.deep || 1;
+      const imgMax = p.imgPerMonth || p.img || 5;
+      const codeMax = p.codePerMonth || p.code || 10;
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <div>
+            <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:#6ee7b7;text-transform:uppercase;">Active Subscription (Live)</div>
+            <div style="font-size:20px;font-weight:800;color:#ffffff;margin-top:2px;">${esc(pName)}</div>
+          </div>
+          <span style="padding:5px 14px;border-radius:999px;background:#10b981;color:#052e16;font-size:12px;font-weight:800;letter-spacing:.04em;">${esc(badge.toUpperCase())} PLAN</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;">
+          <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(16,185,129,0.22);border-radius:10px;padding:10px 12px;">
+            <div style="font-size:11px;color:#94a3b8;">Chat + Study Today</div>
+            <div style="font-size:16px;font-weight:800;color:#6ee7b7;margin-top:3px;">${Number(u.chatToday || 0)} / ${chatMax}</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(16,185,129,0.22);border-radius:10px;padding:10px 12px;">
+            <div style="font-size:11px;color:#94a3b8;">Deep Research / Wk</div>
+            <div style="font-size:16px;font-weight:800;color:#6ee7b7;margin-top:3px;">${Number(u.deepWeek || 0)} / ${deepMax}</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(16,185,129,0.22);border-radius:10px;padding:10px 12px;">
+            <div style="font-size:11px;color:#94a3b8;">Images / Mo</div>
+            <div style="font-size:16px;font-weight:800;color:#6ee7b7;margin-top:3px;">${Number(u.imgMonth || 0)} / ${imgMax}</div>
+          </div>
+          <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(16,185,129,0.22);border-radius:10px;padding:10px 12px;">
+            <div style="font-size:11px;color:#94a3b8;">Code Credits / Mo</div>
+            <div style="font-size:16px;font-weight:800;color:#6ee7b7;margin-top:3px;">${Number(u.codeMonth || 0)} / ${codeMax}</div>
+          </div>
+        </div>
+      `;
+      if (typeof window.__pmApplyLivePlanBadge === 'function') {
+        window.__pmApplyLivePlanBadge(badge, Boolean(d.isAdmin));
+      }
+    }
+    async function fetchAndPaintLiveUsageV881() {
+      try {
+        const sess = JSON.parse(localStorage.getItem('morphic_auth_session_v62') || 'null');
+        const tok = (sess && (sess.token || sess.sessionToken)) || '';
+        const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' };
+        if (tok) headers['Authorization'] = 'Bearer ' + tok;
+        const r = await fetch('/api/research?chatMode=1&t=' + Date.now(), {
+          method: 'POST',
+          cache: 'no-store',
+          headers,
+          body: JSON.stringify({ authAction: 'getMyQuota', sessionToken: tok })
+        });
+        const d = await r.json();
+        if (!d || !d.ok || !d.plan) return;
+        window.__pmLiveQuota = d;
+        const box = document.getElementById('pm-v85-quota-box');
+        if (box) paintQuotaHtmlV881(box, d);
+      } catch (_) {}
+    }
+    window.__pmForcePaintLiveUsage = function(liveQ) {
+      if (liveQ && liveQ.plan) {
+        window.__pmLiveQuota = Object.assign({}, window.__pmLiveQuota || {}, liveQ, { ok: true, authenticated: true });
+        const box = document.getElementById('pm-v85-quota-box');
+        if (box) paintQuotaHtmlV881(box, window.__pmLiveQuota);
+      } else {
+        fetchAndPaintLiveUsageV881();
+      }
+    };
+    // Always re-fetch fresh live usage whenever Billing modal opens (never stale!)
+    let lastBoxRef = null;
+    setInterval(() => {
+      const box = document.getElementById('pm-v85-quota-box');
+      if (box && box !== lastBoxRef) {
+        lastBoxRef = box;
+        fetchAndPaintLiveUsageV881();
+      } else if (!box) {
+        lastBoxRef = null;
+      }
+    }, 350);
   })();
 
   setInterval(() => checkAndMountMainView(false), 3500);
