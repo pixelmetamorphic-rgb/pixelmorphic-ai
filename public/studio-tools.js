@@ -415,6 +415,7 @@
 ;
 ;
 ;
+;
 /* ============================================================================
  * PIXELMORPHIC AI — MORPHIC RESEARCH LAB PRO UI (v11.6 - Researcher Edition)
  * Fixes & Upgrades:
@@ -16701,11 +16702,11 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     } else if (sidebar.lastElementChild !== profDock) {
       sidebar.appendChild(profDock);
     }
-    // Hide the static legacy "Harsh's workspace / Local owner workspace" box if present so there is no duplicate card
+    // Hide the static legacy " / " box if present so there is no duplicate card
     Array.from(sidebar.querySelectorAll('div, footer')).forEach((el) => {
       if (el.id === 'mc-profile-dock' || el.contains(profDock)) return;
       const t = (el.textContent || '').trim();
-      if (/^H\s*Harsh's workspace/i.test(t) && el.children.length <= 4) {
+      if (/^H\s*/i.test(t) && el.children.length <= 4) {
         el.style.display = 'none';
       }
     });
@@ -17300,7 +17301,7 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
       document.head.appendChild(st);
     }
     function scrubLegacyOwnerAndApiUi() {
-      // Hide any legacy "Harsh's workspace / Local owner workspace" or "API configured" host elements
+      // Hide any legacy " / " or "API configured" host elements
       document.querySelectorAll('div, footer, aside, header, span, p').forEach((el) => {
         if (el.id === 'mc-profile-dock' || el.closest('#mc-profile-dock') || el.closest('#mc-settings-modal-backdrop')) return;
         const txt = (el.textContent || '').trim();
@@ -17734,6 +17735,28 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
         lastBoxRef = null;
       }
     }, 350);
+  })();
+
+  
+  // === PIXELMORPHIC v89.2 STRICT LEGACY WORKSPACE CARD REMOVER ===
+  (function initPmV892StrictScrub() {
+    if (window.__pmV892Scrub) return;
+    window.__pmV892Scrub = true;
+    function nukeLegacyCards() {
+      const side = document.querySelector('aside, .sidebar, #sidebar, [class*="sidebar"]') || document.body;
+      if (!side) return;
+      side.querySelectorAll('div, footer, section').forEach((el) => {
+        if (el.id === 'mc-profile-dock' || el.closest('#mc-profile-dock') || el.contains(document.getElementById('mc-profile-dock'))) return;
+        const t = (el.textContent || '').trim();
+        if (t.length > 0 && t.length < 180 && el.children.length <= 6) {
+          if (/Harsh['?]?ss*workspace|Locals*owners*workspace|Clouds*(AIs*)?Workspace|WORK,s*DELIVERED.|One brief.s*A clear plan/i.test(t)) {
+            el.style.setProperty('display', 'none', 'important');
+          }
+        }
+      });
+    }
+    setTimeout(nukeLegacyCards, 100);
+    setInterval(nukeLegacyCards, 1200);
   })();
 
   setInterval(() => checkAndMountMainView(false), 3500);
