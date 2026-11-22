@@ -373,6 +373,18 @@ export function createApp(config, { fetchImpl = fetch, audit = diskAudit } = {})
 
   return http.createServer(async (req, res) => {
 
+  // PM_V91_SEO_PAGES: Serve /pricing and /code-studio static SEO landing pages
+  if (req.method === 'GET' && (req.url === '/pricing' || req.url === '/pricing/' || req.url === '/code-studio' || req.url === '/code-studio/')) {
+    try {
+      const fName = req.url.startsWith('/pricing') ? 'pricing.html' : 'code-studio.html';
+      const content = await readFile(join(dirname(fileURLToPath(import.meta.url)), 'public', fName), 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+      res.end(content);
+      return;
+    } catch (_) {}
+  }
+
+
   // PM_V89_WWW_REDIRECT: Canonical 301 redirect www.pixelmorphicai.co -> pixelmorphicai.co
   const _reqHost = String(req.headers.host || '').toLowerCase().split(':')[0];
   if (_reqHost === 'www.pixelmorphicai.co' && (req.method === 'GET' || req.method === 'HEAD')) {
