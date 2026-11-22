@@ -5860,7 +5860,7 @@
             <div style="display:flex;justify-content:center;gap:8px;margin-top:12px;">
               <button type="button" class="mc-pill-btn active" onclick="window.openPixelmorphicAuthModal && window.openPixelmorphicAuthModal('signup')">👤+ Create Account</button>
               <button type="button" class="mc-pill-btn" onclick="window.openPixelmorphicAuthModal && window.openPixelmorphicAuthModal('signin')">✉️ Email + OTP Sign In</button>
-              <button type="button" class="mc-pill-btn" onclick="window.openPixelmorphicAuthModal && window.openPixelmorphicAuthModal('signin')">🌌 Outer Showcase</button>
+              
             </div>
           ` : ''}
         </div>
@@ -15355,6 +15355,173 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
 })();
 })();
 
-
-
-
+/* PM_V92_START */
+(function(){
+  if (window.__pmV92Init) return;
+  window.__pmV92Init = true;
+  function isAuthedV92() {
+    try {
+      const keys = ['morphic_auth_session_v62', 'pm_session_v85', 'pixelmorphic_session'];
+      for (const k of keys) {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        const s = JSON.parse(raw);
+        if (s && !s.isGuest && (s.email || s.token || s.authenticated === true || s.uid)) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+  function hideCloudOnlineAndGuestBtn() {
+    try {
+      const nodes = document.querySelectorAll('button, a, span, div');
+      for (const el of nodes) {
+        if (el.children.length > 1) continue;
+        const txt = (el.textContent || '').trim();
+        if (/^cloud\s*online$/i.test(txt)) {
+          el.style.setProperty('display', 'none', 'important');
+        } else if (txt.includes('Outer Showcase') && !el.closest('#pm-v92-outer-showcase')) {
+          el.style.setProperty('display', 'none', 'important');
+        }
+      }
+    } catch (_) {}
+  }
+  function raiseAuthModalZ() {
+    setTimeout(() => {
+      ['pm-v88-auth-overlay', 'mc-lock-screen-overlay'].forEach((id) => {
+        const m = document.getElementById(id);
+        if (m) m.style.zIndex = '100005';
+      });
+    }, 30);
+  }
+  function openAuthFromShowcase(tab) {
+    if (typeof window.openPixelmorphicAuthModal === 'function') {
+      window.openPixelmorphicAuthModal(tab || 'signin');
+      raiseAuthModalZ();
+    }
+  }
+  function removeOuterShowcase() {
+    const el = document.getElementById('pm-v92-outer-showcase');
+    if (el) el.remove();
+  }
+  function showOuterShowcase(force) {
+    if (!force && (isAuthedV92() || sessionStorage.getItem('pm_v92_guest_entered') === '1')) return;
+    if (document.getElementById('pm-v92-outer-showcase')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'pm-v92-outer-showcase';
+    wrap.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:99980', 'overflow-y:auto',
+      'background:radial-gradient(circle at 20% 0%, #07291c 0%, #04120c 48%, #020806 100%)',
+      'color:#ecfdf5', 'font-family:Inter,system-ui,-apple-system,sans-serif',
+      'display:flex', 'flex-direction:column', 'min-height:100vh'
+    ].join(';');
+    wrap.innerHTML = `
+      <style>
+        #pm-v92-outer-showcase * { box-sizing: border-box; }
+        .pm92-nav { max-width:1120px; width:100%; margin:0 auto; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .pm92-brand { display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:0.04em; font-size:15px; color:#ecfdf5; text-decoration:none; }
+        .pm92-logo { width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,#10b981,#047857); display:flex; align-items:center; justify-content:center; font-weight:900; color:#02140d; box-shadow:0 0 22px rgba(16,185,129,0.35); }
+        .pm92-nav-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .pm92-btn-ghost { padding:9px 16px; border-radius:10px; border:1px solid rgba(52,211,153,0.32); background:rgba(6,78,59,0.28); color:#d1fae5; font-weight:700; font-size:13px; cursor:pointer; text-decoration:none; }
+        .pm92-btn-ghost:hover { background:rgba(16,185,129,0.2); border-color:#34d399; }
+        .pm92-btn-primary { padding:10px 18px; border-radius:10px; border:none; background:linear-gradient(135deg,#10b981,#059669); color:#02140d; font-weight:800; font-size:13px; cursor:pointer; box-shadow:0 6px 24px rgba(16,185,129,0.32); }
+        .pm92-btn-primary:hover { filter:brightness(1.08); }
+        .pm92-hero { max-width:980px; width:100%; margin:34px auto 0; padding:0 24px 48px; text-align:center; }
+        .pm92-pill { display:inline-block; padding:6px 14px; border-radius:999px; border:1px solid rgba(52,211,153,0.35); background:rgba(6,78,59,0.35); color:#6ee7b7; font-size:11.5px; font-weight:800; letter-spacing:0.08em; margin-bottom:18px; }
+        .pm92-h1 { font-size:clamp(30px,5vw,52px); line-height:1.1; font-weight:900; letter-spacing:-0.03em; margin:0 0 16px; color:#f0fdf4; }
+        .pm92-h1 span { color:#34d399; }
+        .pm92-sub { font-size:16px; line-height:1.6; color:#a7f3d0; opacity:0.86; max-width:660px; margin:0 auto 28px; }
+        .pm92-cta-row { display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom:44px; }
+        .pm92-cta-lg { padding:13px 26px; font-size:15px; border-radius:12px; }
+        .pm92-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; text-align:left; margin-bottom:32px; }
+        .pm92-card { padding:20px; border-radius:16px; border:1px solid rgba(52,211,153,0.18); background:rgba(4,24,16,0.72); }
+        .pm92-card h3 { margin:0 0 8px; font-size:16px; color:#ecfdf5; }
+        .pm92-card p { margin:0; font-size:13px; line-height:1.55; color:#a7f3d0; opacity:0.8; }
+        .pm92-plans { display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; padding:14px 18px; border-radius:14px; border:1px solid rgba(52,211,153,0.18); background:rgba(6,44,30,0.45); font-size:13px; color:#d1fae5; }
+        .pm92-plans b { color:#34d399; }
+      </style>
+      <header class="pm92-nav">
+        <a class="pm92-brand" href="/">
+          <span class="pm92-logo">PM</span>
+          <span>PIXELMORPHIC AI</span>
+        </a>
+        <div class="pm92-nav-actions">
+          <a class="pm92-btn-ghost" href="/pricing">Pricing</a>
+          <button type="button" class="pm92-btn-ghost" id="pm92-nav-signin">Sign In</button>
+          <button type="button" class="pm92-btn-primary" id="pm92-nav-signup">Sign Up Free</button>
+        </div>
+      </header>
+      <main class="pm92-hero">
+        <div class="pm92-pill">PIXELMORPHIC AI WORKSPACE</div>
+        <h1 class="pm92-h1">Code, Research &amp; Create in <span>One AI Workspace</span></h1>
+        <p class="pm92-sub">Build complete web apps in Code Studio, run Deep Research, study smarter, and generate HD visuals ? all in one fast, affordable AI platform starting at \u20B90.</p>
+        <div class="pm92-cta-row">
+          <button type="button" class="pm92-btn-primary pm92-cta-lg" id="pm92-hero-signup">Create Free Account</button>
+          <button type="button" class="pm92-btn-ghost pm92-cta-lg" id="pm92-hero-signin">Sign In</button>
+          <button type="button" class="pm92-btn-ghost pm92-cta-lg" id="pm92-hero-guest" style="opacity:0.85;">Explore as Guest</button>
+        </div>
+        <div class="pm92-grid">
+          <div class="pm92-card">
+            <h3>Code Studio</h3>
+            <p>Generate, edit, and preview full-stack apps and websites with live code credits.</p>
+          </div>
+          <div class="pm92-card">
+            <h3>Deep Research Lab</h3>
+            <p>Structured, source-backed research reports, formulas, and technical breakdowns.</p>
+          </div>
+          <div class="pm92-card">
+            <h3>Image Studio</h3>
+            <p>Create studio-grade visuals, logos, and HD artwork directly inside your workspace.</p>
+          </div>
+          <div class="pm92-card">
+            <h3>Chat &amp; Study Workspace</h3>
+            <p>Fast multi-language AI assistant for daily work, exams, notes, and problem solving.</p>
+          </div>
+        </div>
+        <div class="pm92-plans">
+          <span><b>Free</b> \u20B90</span> &middot;
+          <span><b>Pro</b> \u20B9500/mo</span> &middot;
+          <span><b>Pro+</b> \u20B9900/mo</span> &middot;
+          <span><b>Max</b> \u20B92,999/mo</span>
+        </div>
+      </main>
+    `;
+    document.body.appendChild(wrap);
+    wrap.querySelector('#pm92-nav-signin')?.addEventListener('click', () => openAuthFromShowcase('signin'));
+    wrap.querySelector('#pm92-hero-signin')?.addEventListener('click', () => openAuthFromShowcase('signin'));
+    wrap.querySelector('#pm92-nav-signup')?.addEventListener('click', () => openAuthFromShowcase('signup'));
+    wrap.querySelector('#pm92-hero-signup')?.addEventListener('click', () => openAuthFromShowcase('signup'));
+    wrap.querySelector('#pm92-hero-guest')?.addEventListener('click', () => {
+      try { sessionStorage.setItem('pm_v92_guest_entered', '1'); } catch (_) {}
+      removeOuterShowcase();
+    });
+  }
+  window.openPixelmorphicOuterShowcase = () => showOuterShowcase(true);
+  let prevAuthed = isAuthedV92();
+  setInterval(() => {
+    hideCloudOnlineAndGuestBtn();
+    const nowAuthed = isAuthedV92();
+    if (nowAuthed) {
+      removeOuterShowcase();
+    } else if (prevAuthed && !nowAuthed) {
+      try { sessionStorage.removeItem('pm_v92_guest_entered'); } catch (_) {}
+      showOuterShowcase(true);
+    }
+    prevAuthed = nowAuthed;
+  }, 400);
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('button, a') : null;
+    if (!btn) return;
+    const t = (btn.textContent || '').trim();
+    if (/^(sign\s*out|log\s*out)$/i.test(t)) {
+      try { sessionStorage.removeItem('pm_v92_guest_entered'); } catch (_) {}
+      setTimeout(() => { if (!isAuthedV92()) showOuterShowcase(true); }, 350);
+    }
+  }, true);
+  function bootV92() {
+    hideCloudOnlineAndGuestBtn();
+    if (!isAuthedV92()) showOuterShowcase(false);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootV92);
+  else bootV92();
+})();
+/* PM_V92_END */
