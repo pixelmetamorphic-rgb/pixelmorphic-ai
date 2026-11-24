@@ -3314,17 +3314,28 @@ async function callChatLLM(messages, maxTokens = 8192, temperature = 0.25, reque
   const { apiKey, endpoint, tierConfig, isFal } = detectProviderConfig(requestedModelTier);
   if (!apiKey) throw new Error('API key not configured in .env');
   const authHeaders = isFal ? [`Key ${apiKey}`, `Bearer ${apiKey}`] : [`Bearer ${apiKey}`, `Key ${apiKey}`];
-  const modelsToTry = tierConfig.candidateModels || [tierConfig.modelId];
+  const rawModels = tierConfig.candidateModels || [tierConfig.modelId];
+  const sysText = String(messages?.[0]?.content || '');
+  const isCodeCall = /JavaScript DOM Engineer|Code Studio|complete, self-contained|<!DOCTYPE html>/i.test(sysText);
+  const preferredChatModels = [
+    'anthropic/claude-3.5-sonnet',
+    'google/gemini-2.5-pro',
+    'openai/gpt-4o',
+    'deepseek/deepseek-chat'
+  ];
+  const modelsToTry = isCodeCall
+    ? rawModels
+    : Array.from(new Set([...preferredChatModels, ...rawModels.filter((m) => !/coder/i.test(String(m)))]));
   const targetMaxTokens = Math.min(8192, Math.max(Number(maxTokens) || 0, 6000));
   const startMs = Date.now();
-  const maxTotalMs = 72000;
+  const maxTotalMs = 75000;
   const maxContinuations = 2;
   let lastErr = null;
   for (const curModel of modelsToTry) {
     for (const auth of authHeaders) {
       try {
         const sendOnce = async (msgList, tokLimit) => {
-          const remainingMs = Math.max(20000, Math.min(48000, maxTotalMs - (Date.now() - startMs)));
+          const remainingMs = Math.max(20000, Math.min(45000, maxTotalMs - (Date.now() - startMs)));
           const res = await fetchWithTimeout(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': auth },
@@ -3356,7 +3367,7 @@ async function callChatLLM(messages, maxTokens = 8192, temperature = 0.25, reque
         if (first.authFail) continue;
         if (first.rateLimit) { lastErr = new Error('Rate limit (HTTP 429)'); break; }
         if (first.error) { lastErr = first.error; break; }
-        if (!first.text) continue;
+        if (!first.text) break;
         let fullText = first.text;
         let finishReason = first.finishReason;
         let contCount = 0;
@@ -3377,6 +3388,7 @@ async function callChatLLM(messages, maxTokens = 8192, temperature = 0.25, reque
       } catch (e) {
         console.error('[PM_LLM_CATCH]', curModel, e?.message || e);
         lastErr = e;
+        break; // Do not retry same hanging model with second auth header
       }
     }
   }
@@ -5346,7 +5358,7 @@ STRICT EXECUTION & QUALITY RULES:
    - Start IMMEDIATELY with the direct answer or Step 1 of the solution. NEVER add greetings ("Hello", "Namaste", "Hi [Name]"), NEVER praise the question, NEVER list exam names (CA, UPSC, UGC NET, etc.) unless asked, and NEVER explain basic textbook definitions unless the user explicitly asks for definitions.
    - STRICT LANGUAGE MATCH: Reply in the EXACT language of the user's current message (if the question is in English, reply in English; reply in Hindi/Hinglish ONLY if the user's current message is in Hindi/Hinglish or explicitly asks for Hindi). NEVER claim "since you asked for Hindi" if they did not.
    - 100% COMPLETE SOLUTION (NO SHORTCUTS OR CUTOFFS): Finish every single step, year, working note, table, and final answer completely, no matter how long.
-   - ACCOUNTING LEDGER ACCURACY: For any Asset/Plant/Machinery Account, strictly place Opening Balance (To Balance b/d), Purchases (To Bank A/c), and Profit on Sale on the Debit (Dr. / Left) side, and place Sales (By Bank A/c), Depreciation (By Depreciation A/c), Loss on Sale (By P&L A/c), and Closing Balance (By Balance c/d) on the Credit (Cr. / Right) side. Always verify Dr. Total == Cr. Total for every year. NEVER tell the user to "calculate the closing balance" or leave any step/year incomplete; YOU must explicitly compute and show every year's opening balance, depreciation, Profit/Loss on sale, closing Balance c/d, and matched Dr./Cr. totals.
+   - ACCOUNTING LEDGER ACCURACY: For any Asset/Plant/Machinery Account, strictly place Opening Balance (To Balance b/d), Purchases (To Bank A/c), and Profit on Sale on the Debit (Dr. / Left) side, and place Sales (By Bank A/c), Depreciation (By Depreciation A/c), Loss on Sale (By P&L A/c), and Closing Balance (By Balance c/d) on the Credit (Cr. / Right) side. Always verify Dr. Total == Cr. Total for every year.  Always compute Per-Asset Working Notes FIRST (exact months/12 depreciation, Book Value on sale date, and exact Profit or Loss = Sale Price - Book Value) before building the Dr./Cr. ledger, and include a Total row for EVERY year proving Dr. Total == Cr. Total. NEVER tell the user to "calculate the closing balance" or leave any step/year incomplete; YOU must explicitly compute and show every year's opening balance, depreciation, Profit/Loss on sale, closing Balance c/d, and matched Dr./Cr. totals.
 ${isFestivalQuery ? '7. FESTIVAL NOTE: On November 11, 2026 in India, highlight **Bhai Dooj (Yama Dwitiya)** and **Chitragupta Puja** alongside **National Education Day**.' : ''}
 ${studyMeta && studyMeta.isStudyMode ? buildStudyWorkspaceInstruction(studyMeta, activeTier, rawMessage) : (intent.isConstrained ? '\n' + intent.formatInstruction : '')}${buildUserPersonalizationBlock(payload.userPersonalization)}`;
 
