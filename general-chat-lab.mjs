@@ -799,7 +799,7 @@ export function resolveModelTier(requestedTier) {
         'deepseek/deepseek-chat',
         'meta-llama/llama-3.3-70b-instruct'
       ],
-      maxTokens: 12000,
+      maxTokens: 8192,
       temperature: 0.18,
       thinkingStyle: 'ultra'
     };
@@ -822,7 +822,7 @@ export function resolveModelTier(requestedTier) {
         'meta-llama/llama-3.3-70b-instruct',
         'qwen/qwen3-coder-next'
       ],
-      maxTokens: 12000,
+      maxTokens: 8192,
       temperature: 0.25,
       thinkingStyle: 'fast'
     };
@@ -843,7 +843,7 @@ export function resolveModelTier(requestedTier) {
       'anthropic/claude-3.5-sonnet',
       'meta-llama/llama-3.3-70b-instruct'
     ],
-    maxTokens: 12000,
+    maxTokens: 8192,
     temperature: 0.22,
     thinkingStyle: 'pro'
   };
@@ -3310,20 +3310,21 @@ export async function generateMorphicImage(prompt, quality = 'standard', request
   };
 }
 
-async function callChatLLM(messages, maxTokens = 12000, temperature = 0.25, requestedModelTier = 'morphic-chat-pro') {
+async function callChatLLM(messages, maxTokens = 8192, temperature = 0.25, requestedModelTier = 'morphic-chat-pro') {
   const { apiKey, endpoint, tierConfig, isFal } = detectProviderConfig(requestedModelTier);
   if (!apiKey) throw new Error('API key not configured in .env');
   const authHeaders = isFal ? [`Key ${apiKey}`, `Bearer ${apiKey}`] : [`Bearer ${apiKey}`, `Key ${apiKey}`];
   const modelsToTry = tierConfig.candidateModels || [tierConfig.modelId];
-  const envCap = Number(process.env.AI_MAX_OUTPUT_TOKENS) || 12000;
-  const targetMaxTokens = Math.min(16384, Math.max(Number(maxTokens) || 0, Number(tierConfig.maxTokens) || 0, envCap, 8192));
-  const chunkTimeoutMs = Math.max(Number(process.env.AI_TIMEOUT_MS) || 0, 240000);
-  const maxContinuations = 4;
+  const targetMaxTokens = Math.min(8192, Math.max(Number(maxTokens) || 0, 6000));
+  const startMs = Date.now();
+  const maxTotalMs = 72000;
+  const maxContinuations = 2;
   let lastErr = null;
   for (const curModel of modelsToTry) {
     for (const auth of authHeaders) {
       try {
         const sendOnce = async (msgList, tokLimit) => {
+          const remainingMs = Math.max(20000, Math.min(48000, maxTotalMs - (Date.now() - startMs)));
           const res = await fetchWithTimeout(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': auth },
@@ -3333,10 +3334,18 @@ async function callChatLLM(messages, maxTokens = 12000, temperature = 0.25, requ
               max_tokens: tokLimit,
               temperature: temperature !== undefined ? temperature : tierConfig.temperature
             })
-          }, chunkTimeoutMs);
-          if (res.status === 401 || res.status === 403) return { authFail: true };
-          if (res.status === 429) return { rateLimit: true };
-          if (res.status === 400 && tokLimit > 8192) return sendOnce(msgList, 8192);
+          }, remainingMs);
+          if (res.status === 401 || res.status === 403) return { authFail: true, status: res.status };
+          if (res.status === 429) return { rateLimit: true, status: 429 };
+          if ((res.status === 400 || res.status === 422) && tokLimit > 4096) {
+            console.log('[PM_LLM] Stepping down max_tokens to 4096 for', curModel, 'status:', res.status);
+            return sendOnce(msgList, 4096);
+          }
+          if (!res.ok) {
+            const errTxt = await res.text().catch(() => '');
+            console.error('[PM_LLM_ERR]', curModel, res.status, errTxt.slice(0, 200));
+            return { error: new Error('HTTP ' + res.status) };
+          }
           const data = await res.json();
           const choice = data?.choices?.[0];
           const text = choice?.message?.content || data?.output || '';
@@ -3346,24 +3355,27 @@ async function callChatLLM(messages, maxTokens = 12000, temperature = 0.25, requ
         const first = await sendOnce(messages, targetMaxTokens);
         if (first.authFail) continue;
         if (first.rateLimit) { lastErr = new Error('Rate limit (HTTP 429)'); break; }
+        if (first.error) { lastErr = first.error; break; }
         if (!first.text) continue;
         let fullText = first.text;
         let finishReason = first.finishReason;
         let contCount = 0;
-        while (finishReason === 'length' && contCount < maxContinuations) {
+        while (finishReason === 'length' && contCount < maxContinuations && (Date.now() - startMs) < 62000) {
           contCount++;
           const contMessages = [
             ...messages,
             { role: 'assistant', content: fullText },
             { role: 'user', content: 'Continue seamlessly from the exact character where you stopped. Do not repeat anything already written, do not add any intro or apology, and finish the entire solution completely.' }
           ];
-          const next = await sendOnce(contMessages, targetMaxTokens);
-          if (!next.text || next.authFail || next.rateLimit) break;
+          const next = await sendOnce(contMessages, 4096);
+          if (!next.text || next.authFail || next.rateLimit || next.error) break;
           fullText += next.text;
           finishReason = next.finishReason;
         }
+        console.log('[PM_LLM_OK]', curModel, 'chars:', fullText.length, 'cont:', contCount, 'ms:', Date.now() - startMs);
         return { text: fullText, model: curModel, tier: tierConfig.tierName };
       } catch (e) {
+        console.error('[PM_LLM_CATCH]', curModel, e?.message || e);
         lastErr = e;
       }
     }
