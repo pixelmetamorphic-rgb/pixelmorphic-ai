@@ -3318,10 +3318,10 @@ async function callChatLLM(messages, maxTokens = 8192, temperature = 0.25, reque
   const sysText = String(messages?.[0]?.content || '');
   const isCodeCall = /JavaScript DOM Engineer|Code Studio|complete, self-contained|<!DOCTYPE html>/i.test(sysText);
   const preferredChatModels = [
-    'anthropic/claude-3.5-sonnet',
-    'google/gemini-2.5-pro',
-    'openai/gpt-4o',
-    'deepseek/deepseek-chat'
+    'google/gemini-2.5-flash',
+    'anthropic/claude-sonnet-4.5',
+    'openai/gpt-4.1',
+    'openai/gpt-4o'
   ];
   const modelsToTry = isCodeCall
     ? rawModels
