@@ -15525,3 +15525,144 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
   else bootV92();
 })();
 /* PM_V92_END */
+
+/* PM_V94_START */
+(function(){
+  if (window.__pmV94Init) return;
+  window.__pmV94Init = true;
+  function injectV94ContrastCSS() {
+    if (document.getElementById('pm-v94-contrast-css')) return;
+    const st = document.createElement('style');
+    st.id = 'pm-v94-contrast-css';
+    st.textContent = `
+      body.pm-v94-dark .mc-msg-assistant,
+      body.pm-v94-dark .mc-msg-assistant *:not(code):not(pre):not(button):not(a),
+      body.pm-v94-dark .mc-answer-body,
+      body.pm-v94-dark .mc-answer-body *:not(code):not(pre):not(button):not(a),
+      body.pm-v94-dark .mc-markdown,
+      body.pm-v94-dark .mc-markdown *:not(code):not(pre):not(button):not(a),
+      body.pm-v94-dark .mc-card,
+      body.pm-v94-dark .mc-card p,
+      body.pm-v94-dark .mc-card li,
+      body.pm-v94-dark .mc-card h1,
+      body.pm-v94-dark .mc-card h2,
+      body.pm-v94-dark .mc-card h3,
+      body.pm-v94-dark .mc-card h4,
+      body.pm-v94-dark .mc-bubble-ai,
+      body.pm-v94-dark .mc-bubble-ai *:not(code):not(pre):not(button):not(a) {
+        color: #e6f7ef !important;
+      }
+      body.pm-v94-dark .mc-msg-assistant strong,
+      body.pm-v94-dark .mc-msg-assistant b,
+      body.pm-v94-dark .mc-answer-body strong,
+      body.pm-v94-dark .mc-answer-body b,
+      body.pm-v94-dark .mc-markdown strong,
+      body.pm-v94-dark .mc-bubble-ai strong {
+        color: #ffffff !important;
+      }
+      body.pm-v94-dark .mc-msg-assistant h1,
+      body.pm-v94-dark .mc-msg-assistant h2,
+      body.pm-v94-dark .mc-msg-assistant h3,
+      body.pm-v94-dark .mc-msg-assistant h4,
+      body.pm-v94-dark .mc-answer-body h1,
+      body.pm-v94-dark .mc-answer-body h2,
+      body.pm-v94-dark .mc-answer-body h3,
+      body.pm-v94-dark .mc-answer-body h4,
+      body.pm-v94-dark .mc-bubble-ai h1,
+      body.pm-v94-dark .mc-bubble-ai h2,
+      body.pm-v94-dark .mc-bubble-ai h3,
+      body.pm-v94-dark .mc-bubble-ai h4 {
+        color: #6ee7b7 !important;
+        margin-top: 14px;
+        margin-bottom: 6px;
+      }
+      body.pm-v94-dark table {
+        border-collapse: collapse !important;
+        width: 100% !important;
+        background: #061812 !important;
+        border: 1px solid rgba(52, 211, 153, 0.28) !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
+      }
+      body.pm-v94-dark table thead,
+      body.pm-v94-dark table thead tr,
+      body.pm-v94-dark table th {
+        background: #0c3325 !important;
+        color: #a7f3d0 !important;
+        border-color: rgba(52, 211, 153, 0.28) !important;
+        font-weight: 700 !important;
+      }
+      body.pm-v94-dark table tbody tr,
+      body.pm-v94-dark table td {
+        background: #071d15 !important;
+        color: #ecfdf5 !important;
+        border-color: rgba(52, 211, 153, 0.2) !important;
+      }
+      body.pm-v94-dark table tbody tr:nth-child(even) td {
+        background: #0a261c !important;
+      }
+      body.pm-v94-dark code {
+        background: #0a291e !important;
+        color: #6ee7b7 !important;
+        padding: 2px 5px;
+        border-radius: 5px;
+      }
+      body.pm-v94-dark pre,
+      body.pm-v94-dark pre code {
+        background: #04120d !important;
+        color: #d1fae5 !important;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+  function detectAndApplyDarkContrast() {
+    try {
+      injectV94ContrastCSS();
+      const bg = getComputedStyle(document.body).backgroundColor || '';
+      const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      let isDark = true;
+      if (m) {
+        const lum = (0.299 * Number(m[1]) + 0.587 * Number(m[2]) + 0.114 * Number(m[3]));
+        isDark = lum < 140;
+      }
+      document.body.classList.toggle('pm-v94-dark', isDark);
+      if (isDark) {
+        // Fix bright white Study Workspace header bar + dark inline text inside assistant replies
+        document.querySelectorAll('div, header, section').forEach((el) => {
+          const txt = (el.textContent || '');
+          if (txt.includes('Academic Study Workspace') && el.getBoundingClientRect().height < 140 && el.getBoundingClientRect().height > 30) {
+            el.style.setProperty('background', 'linear-gradient(135deg, #072219, #051812)', 'important');
+            el.style.setProperty('border', '1px solid rgba(52,211,153,0.28)', 'important');
+            el.style.setProperty('color', '#ecfdf5', 'important');
+          }
+        });
+        // Fix raw #### headings and dark inline-styled text inside rendered response blocks
+        document.querySelectorAll('p, li, td, th, div').forEach((el) => {
+          if (el.closest('nav, aside, header, #pm-v92-outer-showcase, #pm-v88-auth-overlay, button')) return;
+          if (el.children.length === 0 && /^#{3,5}\s+/.test((el.textContent || '').trim())) {
+            el.textContent = el.textContent.trim().replace(/^#{3,5}\s+/, '');
+            el.style.setProperty('color', '#6ee7b7', 'important');
+            el.style.setProperty('font-weight', '800', 'important');
+            el.style.setProperty('font-size', '15.5px', 'important');
+            el.style.setProperty('margin-top', '12px', 'important');
+          }
+          const c = getComputedStyle(el).color || '';
+          const cm = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (cm && el.closest('[class*="mc-"], main, #mc-thread, #mc-chat-thread, #mc-study-thread')) {
+            const textLum = 0.299 * Number(cm[1]) + 0.587 * Number(cm[2]) + 0.114 * Number(cm[3]);
+            const elBg = getComputedStyle(el).backgroundColor || '';
+            const bm = elBg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
+            const hasLightBg = bm && (bm[4] === undefined || Number(bm[4]) > 0.4) && (0.299 * Number(bm[1]) + 0.587 * Number(bm[2]) + 0.114 * Number(bm[3])) > 160;
+            if (textLum < 120 && !hasLightBg) {
+              el.style.setProperty('color', '#e6f7ef', 'important');
+            }
+          }
+        });
+      }
+    } catch (_) {}
+  }
+  setInterval(detectAndApplyDarkContrast, 500);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', detectAndApplyDarkContrast);
+  else detectAndApplyDarkContrast();
+})();
+/* PM_V94_END */
