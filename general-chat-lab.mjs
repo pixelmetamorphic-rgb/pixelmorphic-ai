@@ -799,7 +799,7 @@ export function resolveModelTier(requestedTier) {
         'deepseek/deepseek-chat',
         'meta-llama/llama-3.3-70b-instruct'
       ],
-      maxTokens: 6000,
+      maxTokens: 12000,
       temperature: 0.18,
       thinkingStyle: 'ultra'
     };
@@ -822,7 +822,7 @@ export function resolveModelTier(requestedTier) {
         'meta-llama/llama-3.3-70b-instruct',
         'qwen/qwen3-coder-next'
       ],
-      maxTokens: 3600,
+      maxTokens: 12000,
       temperature: 0.25,
       thinkingStyle: 'fast'
     };
@@ -843,7 +843,7 @@ export function resolveModelTier(requestedTier) {
       'anthropic/claude-3.5-sonnet',
       'meta-llama/llama-3.3-70b-instruct'
     ],
-    maxTokens: 4800,
+    maxTokens: 12000,
     temperature: 0.22,
     thinkingStyle: 'pro'
   };
@@ -3310,35 +3310,59 @@ export async function generateMorphicImage(prompt, quality = 'standard', request
   };
 }
 
-async function callChatLLM(messages, maxTokens = 2800, temperature = 0.25, requestedModelTier = 'morphic-chat-pro') {
+async function callChatLLM(messages, maxTokens = 12000, temperature = 0.25, requestedModelTier = 'morphic-chat-pro') {
   const { apiKey, endpoint, tierConfig, isFal } = detectProviderConfig(requestedModelTier);
   if (!apiKey) throw new Error('API key not configured in .env');
-
   const authHeaders = isFal ? [`Key ${apiKey}`, `Bearer ${apiKey}`] : [`Bearer ${apiKey}`, `Key ${apiKey}`];
   const modelsToTry = tierConfig.candidateModels || [tierConfig.modelId];
+  const envCap = Number(process.env.AI_MAX_OUTPUT_TOKENS) || 12000;
+  const targetMaxTokens = Math.min(16384, Math.max(Number(maxTokens) || 0, Number(tierConfig.maxTokens) || 0, envCap, 8192));
+  const chunkTimeoutMs = Math.max(Number(process.env.AI_TIMEOUT_MS) || 0, 240000);
+  const maxContinuations = 4;
   let lastErr = null;
-
   for (const curModel of modelsToTry) {
     for (const auth of authHeaders) {
       try {
-        const res = await fetchWithTimeout(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': auth },
-          body: JSON.stringify({
-            model: curModel,
-            messages,
-            max_tokens: maxTokens || tierConfig.maxTokens,
-            temperature: temperature !== undefined ? temperature : tierConfig.temperature
-          })
-        }, 90000);
-        if (res.status === 401 || res.status === 403) continue;
-        if (res.status === 429) {
-          lastErr = new Error('Rate limit (HTTP 429)');
-          break;
+        const sendOnce = async (msgList, tokLimit) => {
+          const res = await fetchWithTimeout(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': auth },
+            body: JSON.stringify({
+              model: curModel,
+              messages: msgList,
+              max_tokens: tokLimit,
+              temperature: temperature !== undefined ? temperature : tierConfig.temperature
+            })
+          }, chunkTimeoutMs);
+          if (res.status === 401 || res.status === 403) return { authFail: true };
+          if (res.status === 429) return { rateLimit: true };
+          if (res.status === 400 && tokLimit > 8192) return sendOnce(msgList, 8192);
+          const data = await res.json();
+          const choice = data?.choices?.[0];
+          const text = choice?.message?.content || data?.output || '';
+          const finishReason = choice?.finish_reason || '';
+          return { text, finishReason };
+        };
+        const first = await sendOnce(messages, targetMaxTokens);
+        if (first.authFail) continue;
+        if (first.rateLimit) { lastErr = new Error('Rate limit (HTTP 429)'); break; }
+        if (!first.text) continue;
+        let fullText = first.text;
+        let finishReason = first.finishReason;
+        let contCount = 0;
+        while (finishReason === 'length' && contCount < maxContinuations) {
+          contCount++;
+          const contMessages = [
+            ...messages,
+            { role: 'assistant', content: fullText },
+            { role: 'user', content: 'Continue seamlessly from the exact character where you stopped. Do not repeat anything already written, do not add any intro or apology, and finish the entire solution completely.' }
+          ];
+          const next = await sendOnce(contMessages, targetMaxTokens);
+          if (!next.text || next.authFail || next.rateLimit) break;
+          fullText += next.text;
+          finishReason = next.finishReason;
         }
-        const data = await res.json();
-        const text = data?.choices?.[0]?.message?.content || data?.output || '';
-        if (text) return { text, model: curModel, tier: tierConfig.tierName };
+        return { text: fullText, model: curModel, tier: tierConfig.tierName };
       } catch (e) {
         lastErr = e;
       }
@@ -5305,6 +5329,12 @@ STRICT EXECUTION & QUALITY RULES:
    - NEVER fabricate, guess, or simulate any URL (NEVER output fake drive.google.com, docs.google.com, dropbox.com, example.com, or "(Simulated secure link)"!).
    - If the user asks you to create/generate/download a PDF, study guide, or MCQ set on a topic, NEVER pretend an external PDF link already exists—instead, WRITE OUT the complete study guide / all requested MCQs and explanations in full detail directly in your response (the app's built-in PDF generator automatically turns your written response into a downloadable PDF!).
    - When the user asks for external official portals or PYP downloads, ONLY link exact URLs provided in the VERIFIED DOWNLOADABLE LINKS list below.
+
+7. ZERO FLUFF & DIRECT EXECUTION (MANDATORY):
+   - Start IMMEDIATELY with the direct answer or Step 1 of the solution. NEVER add greetings ("Hello", "Namaste", "Hi [Name]"), NEVER praise the question, NEVER list exam names (CA, UPSC, UGC NET, etc.) unless asked, and NEVER explain basic textbook definitions unless the user explicitly asks for definitions.
+   - STRICT LANGUAGE MATCH: Reply in the EXACT language of the user's current message (if the question is in English, reply in English; reply in Hindi/Hinglish ONLY if the user's current message is in Hindi/Hinglish or explicitly asks for Hindi). NEVER claim "since you asked for Hindi" if they did not.
+   - 100% COMPLETE SOLUTION (NO SHORTCUTS OR CUTOFFS): Finish every single step, year, working note, table, and final answer completely, no matter how long.
+   - ACCOUNTING LEDGER ACCURACY: For any Asset/Plant/Machinery Account, strictly place Opening Balance (To Balance b/d), Purchases (To Bank A/c), and Profit on Sale on the Debit (Dr. / Left) side, and place Sales (By Bank A/c), Depreciation (By Depreciation A/c), Loss on Sale (By P&L A/c), and Closing Balance (By Balance c/d) on the Credit (Cr. / Right) side. Always verify Dr. Total == Cr. Total for every year.
 ${isFestivalQuery ? '7. FESTIVAL NOTE: On November 11, 2026 in India, highlight **Bhai Dooj (Yama Dwitiya)** and **Chitragupta Puja** alongside **National Education Day**.' : ''}
 ${studyMeta && studyMeta.isStudyMode ? buildStudyWorkspaceInstruction(studyMeta, activeTier, rawMessage) : (intent.isConstrained ? '\n' + intent.formatInstruction : '')}${buildUserPersonalizationBlock(payload.userPersonalization)}`;
 
