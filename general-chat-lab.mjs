@@ -811,9 +811,7 @@ export function resolveModelTier(requestedTier) {
       company: 'Pixelmorphic AI',
       founder: 'Harsh Saxena',
       featureSummary: 'Ultra-low-latency, Grok-speed intelligence engine for instant direct answers, crisp bullet points, rapid math & code solutions, and real-time assistance.',
-      personaInstruction: `MODEL TIER: **Morphic Fast (⚡ High-Speed Concept Coach & Direct Mentor)**.
-- Deliver a sharp, energetic, high-signal response with zero fluff (like a fast exam coach).
-- Lead immediately with the **Direct Answer / Core Formula**, then **Quick Bullet Steps**, and a **1-Line Pro Tip / Shortcut**.`,
+      personaInstruction: `MODEL TIER: **Morphic Fast** ? Give a crisp, direct, accurate answer with zero fluff and NO self-introduction or model/founder header unless the user asks who you are.`,
       modelId: env.AI_MODEL_FAST || 'google/gemini-2.0-flash-001' || 'openai/gpt-4o-mini' || 'meta-llama/llama-3.3-70b-instruct',
       candidateModels: [
         ...(env.AI_MODEL_FAST ? [env.AI_MODEL_FAST] : []),
@@ -1808,6 +1806,62 @@ export async function searchLiveWebForChat(rawQuery) {
       } catch (_) {}
     })(),
 
+    // PM_V95_LIVE_START
+    // Engine 4: Google News India RSS (Datacenter-friendly real-time 2026 news, gold rates, stocks, events)
+    (async () => {
+      try {
+        const gNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(primaryQ)}&hl=en-IN&gl=IN&ceid=IN:en`;
+        const res = await fetchWithTimeout(gNewsUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PixelmorphicBot/1.0)' }
+        }, 5500);
+        if (res.ok) {
+          const xml = await res.text();
+          const items = xml.split(/<item>/i).slice(1, 8);
+          for (const it of items) {
+            const tm = it.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>|<title>([\s\S]*?)<\/title>/i);
+            const lm = it.match(/<link>([\s\S]*?)<\/link>/i);
+            const pm = it.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
+            const dm = it.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description>([\s\S]*?)<\/description>/i);
+            const title = stripTags(tm ? (tm[1] || tm[2] || '') : '');
+            const link = (lm ? lm[1].trim() : '') || 'https://news.google.com';
+            const pubDate = stripTags(pm ? pm[1] : '');
+            const desc = stripTags(dm ? (dm[1] || dm[2] || '') : '');
+            if (title) {
+              results.push({
+                title,
+                url: link,
+                domain: 'news.google.com',
+                snippet: (pubDate ? `[${pubDate}] ` : '') + (desc || title).slice(0, 360),
+                sourceType: 'Live Google News RSS'
+              });
+            }
+          }
+        }
+      } catch (_) {}
+    })(),
+    // Engine 5: Live Currency Exchange Rate JSON API (Free, zero API key, real-time FX)
+    (async () => {
+      try {
+        if (!/\b(usd|inr|rupee|dollar|eur|euro|gbp|pound|exchange\s*rate|currency|forex)\b/i.test(primaryQ)) return;
+        const fxRes = await fetchWithTimeout('https://open.er-api.com/v6/latest/USD', {}, 4500);
+        if (fxRes.ok) {
+          const fx = await fxRes.json();
+          if (fx && fx.result === 'success' && fx.rates && fx.rates.INR) {
+            const inr = Number(fx.rates.INR).toFixed(2);
+            const eurInr = fx.rates.EUR ? (fx.rates.INR / fx.rates.EUR).toFixed(2) : '';
+            const gbpInr = fx.rates.GBP ? (fx.rates.INR / fx.rates.GBP).toFixed(2) : '';
+            results.unshift({
+              title: `Live Exchange Rate (Updated: ${fx.time_last_update_utc || 'Today'})`,
+              url: 'https://open.er-api.com/v6/latest/USD',
+              domain: 'open.er-api.com',
+              snippet: `LIVE VERIFIED FX RATES: 1 USD = ${inr} INR` + (eurInr ? `, 1 EUR = ${eurInr} INR` : '') + (gbpInr ? `, 1 GBP = ${gbpInr} INR` : '') + `. Always cite these exact live figures.`,
+              sourceType: 'Live Forex API'
+            });
+          }
+        }
+      } catch (_) {}
+    })(),
+    // PM_V95_LIVE_END
     // Engine 3: Bing Web Search HTML (Real organic web search results & snippets)
     (async () => {
       try {
