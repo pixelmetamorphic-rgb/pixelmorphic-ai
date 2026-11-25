@@ -1805,41 +1805,50 @@ export async function searchLiveWebForChat(rawQuery) {
         }
       } catch (_) {}
     })(),
-
     // PM_V95_LIVE_START
-    // Engine 4: Google News India RSS (Datacenter-friendly real-time 2026 news, gold rates, stocks, events)
+    // Engine 4: Smart Multi-Query Google News India RSS (handles 2-part & conversational queries cleanly)
     (async () => {
       try {
-        const gNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(primaryQ)}&hl=en-IN&gl=IN&ceid=IN:en`;
-        const res = await fetchWithTimeout(gNewsUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PixelmorphicBot/1.0)' }
-        }, 5500);
-        if (res.ok) {
-          const xml = await res.text();
-          const items = xml.split(/<item>/i).slice(1, 8);
-          for (const it of items) {
-            const tm = it.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>|<title>([\s\S]*?)<\/title>/i);
-            const lm = it.match(/<link>([\s\S]*?)<\/link>/i);
-            const pm = it.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
-            const dm = it.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description>([\s\S]*?)<\/description>/i);
-            const title = stripTags(tm ? (tm[1] || tm[2] || '') : '');
-            const link = (lm ? lm[1].trim() : '') || 'https://news.google.com';
-            const pubDate = stripTags(pm ? pm[1] : '');
-            const desc = stripTags(dm ? (dm[1] || dm[2] || '') : '');
-            if (title) {
-              results.push({
-                title,
-                url: link,
-                domain: 'news.google.com',
-                snippet: (pubDate ? `[${pubDate}] ` : '') + (desc || title).slice(0, 360),
-                sourceType: 'Live Google News RSS'
-              });
+        const cleaned = String(primaryQ || '')
+          .replace(/\b(what is|what are|tell me|give me|please|can you|show me|today'?s|right now|currently)\b/gi, ' ')
+          .replace(/[?!.,]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        const subQueries = cleaned.split(/\s+and\s+/i).map(s => s.trim()).filter(s => s.length >= 3).slice(0, 2);
+        const qList = subQueries.length ? subQueries : [cleaned || primaryQ];
+        await Promise.all(qList.map(async (qItem) => {
+          try {
+            const gNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(qItem)}&hl=en-IN&gl=IN&ceid=IN:en`;
+            const res = await fetchWithTimeout(gNewsUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PixelmorphicBot/1.0)' }
+            }, 5000);
+            if (!res.ok) return;
+            const xml = await res.text();
+            const items = xml.split(/<item>/i).slice(1, 6);
+            for (const it of items) {
+              const tm = it.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>|<title>([\s\S]*?)<\/title>/i);
+              const lm = it.match(/<link>([\s\S]*?)<\/link>/i);
+              const pm = it.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
+              const dm = it.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description>([\s\S]*?)<\/description>/i);
+              const title = stripTags(tm ? (tm[1] || tm[2] || '') : '');
+              const link = (lm ? lm[1].trim() : '') || 'https://news.google.com';
+              const pubDate = stripTags(pm ? pm[1] : '');
+              const desc = stripTags(dm ? (dm[1] || dm[2] || '') : '');
+              if (title) {
+                results.push({
+                  title,
+                  url: link,
+                  domain: 'news.google.com',
+                  snippet: (pubDate ? `[${pubDate}] ` : '') + (desc || title).slice(0, 360),
+                  sourceType: 'Live Google News RSS'
+                });
+              }
             }
-          }
-        }
+          } catch (_) {}
+        }));
       } catch (_) {}
     })(),
-    // Engine 5: Live Currency Exchange Rate JSON API (Free, zero API key, real-time FX)
+    // Engine 5: Live Currency Exchange Rate JSON API (Free, zero API key)
     (async () => {
       try {
         if (!/\b(usd|inr|rupee|dollar|eur|euro|gbp|pound|exchange\s*rate|currency|forex)\b/i.test(primaryQ)) return;
@@ -1854,8 +1863,53 @@ export async function searchLiveWebForChat(rawQuery) {
               title: `Live Exchange Rate (Updated: ${fx.time_last_update_utc || 'Today'})`,
               url: 'https://open.er-api.com/v6/latest/USD',
               domain: 'open.er-api.com',
-              snippet: `LIVE VERIFIED FX RATES: 1 USD = ${inr} INR` + (eurInr ? `, 1 EUR = ${eurInr} INR` : '') + (gbpInr ? `, 1 GBP = ${gbpInr} INR` : '') + `. Always cite these exact live figures.`,
+              snippet: `LIVE VERIFIED FX RATES: 1 USD = ${inr} INR` + (eurInr ? `, 1 EUR = ${eurInr} INR` : '') + (gbpInr ? `, 1 GBP = ${gbpInr} INR` : '') + `. Use these exact live figures.`,
               sourceType: 'Live Forex API'
+            });
+          }
+        }
+      } catch (_) {}
+    })(),
+    // Engine 6: Live Gold & Silver Price in INR (Free JSON, zero API key)
+    (async () => {
+      try {
+        if (!/\b(gold|silver|24k|22k|bullion|sona|chandi)\b/i.test(primaryQ)) return;
+        const gRes = await fetchWithTimeout('https://data-asg.goldprice.org/dbXRates/INR', {
+          headers: { 'User-Agent': 'Mozilla/5.0' }
+        }, 4500);
+        if (gRes.ok) {
+          const gd = await gRes.json();
+          const item = gd?.items?.[0];
+          if (item && item.xauPrice) {
+            const perGram24k = item.xauPrice / 31.1034768;
+            const per10g24k = Math.round(perGram24k * 10);
+            const per10g22k = Math.round(per10g24k * (22 / 24));
+            const silverPerKg = item.xagPrice ? Math.round((item.xagPrice / 31.1034768) * 1000) : null;
+            results.unshift({
+              title: `Live Gold & Silver Spot Rate INR (${gd.date || 'Today'})`,
+              url: 'https://goldprice.org',
+              domain: 'goldprice.org',
+              snippet: `LIVE SPOT BULLION RATES (International Spot in INR, before Indian import duty & 3% GST): 24K Gold = INR ${per10g24k.toLocaleString('en-IN')} per 10g (INR ${Math.round(perGram24k).toLocaleString('en-IN')}/g); 22K Gold = INR ${per10g22k.toLocaleString('en-IN')} per 10g` + (silverPerKg ? `; Silver = INR ${silverPerKg.toLocaleString('en-IN')}/kg` : '') + `. Note: Indian retail/MCX prices are typically higher after import duty and 3% GST.`,
+              sourceType: 'Live Bullion API'
+            });
+          }
+        }
+      } catch (_) {}
+    })(),
+    // Engine 7: Live Crypto Prices (BTC, ETH, SOL in USD & INR)
+    (async () => {
+      try {
+        if (!/\b(bitcoin|btc|ethereum|eth|solana|sol|crypto|dogecoin|xrp)\b/i.test(primaryQ)) return;
+        const cRes = await fetchWithTimeout('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd,inr', {}, 4500);
+        if (cRes.ok) {
+          const cd = await cRes.json();
+          if (cd?.bitcoin) {
+            results.unshift({
+              title: 'Live Crypto Prices (CoinGecko)',
+              url: 'https://www.coingecko.com',
+              domain: 'coingecko.com',
+              snippet: `LIVE CRYPTO PRICES: Bitcoin (BTC) = ${cd.bitcoin.usd?.toLocaleString()} (INR ${cd.bitcoin.inr?.toLocaleString('en-IN')}); Ethereum (ETH) = ${cd.ethereum?.usd?.toLocaleString()} (INR ${cd.ethereum?.inr?.toLocaleString('en-IN')}); Solana (SOL) = ${cd.solana?.usd?.toLocaleString()} (INR ${cd.solana?.inr?.toLocaleString('en-IN')}).`,
+              sourceType: 'Live Crypto API'
             });
           }
         }
@@ -3371,12 +3425,12 @@ async function callChatLLM(messages, maxTokens = 8192, temperature = 0.25, reque
   const rawModels = tierConfig.candidateModels || [tierConfig.modelId];
   const sysText = String(messages?.[0]?.content || '');
   const isCodeCall = /JavaScript DOM Engineer|Code Studio|complete, self-contained|<!DOCTYPE html>/i.test(sysText);
-  const preferredChatModels = [
-    'google/gemini-2.5-flash',
-    'anthropic/claude-sonnet-4.5',
-    'openai/gpt-4.1',
-    'openai/gpt-4o'
-  ];
+  const reqTierLow = String(requestedModelTier || '').toLowerCase();
+  const preferredChatModels = reqTierLow.includes('ultra')
+    ? ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-flash', 'openai/gpt-4.1', 'openai/gpt-4o']
+    : reqTierLow.includes('fast')
+      ? ['google/gemini-2.5-flash', 'openai/gpt-4.1-mini']
+      : ['google/gemini-2.5-flash', 'openai/gpt-4.1-mini', 'anthropic/claude-sonnet-4.5', 'openai/gpt-4o'];
   const modelsToTry = isCodeCall
     ? rawModels
     : Array.from(new Set([...preferredChatModels, ...rawModels.filter((m) => !/coder/i.test(String(m)))]));
@@ -5344,14 +5398,14 @@ export async function handleGeneralChatApi(req, res) {
       const detectedPlace = !isIdentityQ ? detectPlaceFromQuery(rawMessage, userLocation) : null;
 
       const [sources, crawledUrls, placeIntel, downloadLinks] = await Promise.all([
-        (webSearchEnabled && !isIdentityQ) ? searchLiveWebForChat(spellCheck.repaired) : Promise.resolve([]),
+        ((webSearchEnabled || /\b(today|now|live|latest|current|news|price|rate|weather|score|2026|who is|gold|silver|usd|inr|dollar|rupee|bitcoin|btc|eth|nifty|sensex|stock|election|president|prime minister|pm|cm)\b/i.test(spellCheck.repaired)) && !isIdentityQ) ? searchLiveWebForChat(spellCheck.repaired) : Promise.resolve([]),
         inspectAndCrawlUserUrls(rawMessage),
         detectedPlace ? fetchPlaceRealtimeIntelligence(detectedPlace, userLocation) : Promise.resolve(null),
         !isIdentityQ ? searchDownloadableLinksAndPYP(rawMessage) : Promise.resolve([])
       ]);
 
       const nowDateObj = new Date();
-      const nowIso = nowDateObj.toISOString().slice(0, 10);
+      const nowIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(nowDateObj);
       const liveHumanDate = new Intl.DateTimeFormat('en-IN', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata'
       }).format(nowDateObj);
@@ -5408,6 +5462,7 @@ STRICT EXECUTION & QUALITY RULES:
    - If the user asks you to create/generate/download a PDF, study guide, or MCQ set on a topic, NEVER pretend an external PDF link already exists—instead, WRITE OUT the complete study guide / all requested MCQs and explanations in full detail directly in your response (the app's built-in PDF generator automatically turns your written response into a downloadable PDF!).
    - When the user asks for external official portals or PYP downloads, ONLY link exact URLs provided in the VERIFIED DOWNLOADABLE LINKS list below.
 
+8. STRICT LIVE DATA GROUNDING (ALL MODELS): Whenever LIVE FOREX, LIVE BULLION/GOLD, LIVE CRYPTO, WEATHER, or LIVE GOOGLE NEWS facts are provided in context, you MUST report those exact 2026 figures and NEVER fall back to old 2023/2024 training-data numbers. If a live price/score is missing from context, clearly say live data is temporarily unavailable instead of guessing an outdated rate.
 7. ZERO FLUFF & DIRECT EXECUTION (MANDATORY):
    - Start IMMEDIATELY with the direct answer or Step 1 of the solution. NEVER add greetings ("Hello", "Namaste", "Hi [Name]"), NEVER praise the question, NEVER list exam names (CA, UPSC, UGC NET, etc.) unless asked, and NEVER explain basic textbook definitions unless the user explicitly asks for definitions.
    - STRICT LANGUAGE MATCH: Reply in the EXACT language of the user's current message (if the question is in English, reply in English; reply in Hindi/Hinglish ONLY if the user's current message is in Hindi/Hinglish or explicitly asks for Hindi). NEVER claim "since you asked for Hindi" if they did not.
