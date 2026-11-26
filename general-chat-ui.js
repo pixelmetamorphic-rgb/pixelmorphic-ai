@@ -15666,3 +15666,240 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
   else detectAndApplyDarkContrast();
 })();
 /* PM_V94_END */
+
+/* PM_V96_MOBILE_START */
+(function(){
+  if (window.__pmV96MobileInit) return;
+  window.__pmV96MobileInit = true;
+  function ensureViewportMeta() {
+    let vp = document.querySelector('meta[name="viewport"]');
+    if (!vp) {
+      vp = document.createElement('meta');
+      vp.name = 'viewport';
+      document.head.appendChild(vp);
+    }
+    vp.content = 'width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover';
+  }
+  function injectV96MobileCSS() {
+    if (document.getElementById('pm-v96-mobile-css')) return;
+    const st = document.createElement('style');
+    st.id = 'pm-v96-mobile-css';
+    st.textContent = `
+      @media (max-width: 860px) {
+        html, body {
+          width: 100% !important;
+          max-width: 100vw !important;
+          overflow-x: hidden !important;
+          -webkit-text-size-adjust: 100% !important;
+        }
+        *, *::before, *::after {
+          box-sizing: border-box !important;
+        }
+        /* Prevent any text, heading, badge, or bubble from overlapping */
+        h1, h2, h3, h4, h5, h6, p, li, span, a, button, label, div {
+          overflow-wrap: break-word;
+          word-wrap: break-word;
+        }
+        h1, h2, h3, h4 {
+          line-height: 1.28 !important;
+          height: auto !important;
+          min-height: 0 !important;
+        }
+        p, li {
+          line-height: 1.58 !important;
+        }
+        /* Main workspace & topbar wrapping */
+        header, .topbar, .mc-topbar, [class*="topbar"] {
+          height: auto !important;
+          min-height: 52px !important;
+          padding: 8px 10px !important;
+          display: flex !important;
+          flex-wrap: wrap !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          gap: 6px !important;
+          position: relative !important;
+        }
+        header button, header a, .mc-topbar button, .mc-topbar a {
+          font-size: 12px !important;
+          padding: 6px 10px !important;
+          white-space: nowrap !important;
+          height: auto !important;
+          line-height: 1.25 !important;
+        }
+        /* Main content container & chat thread */
+        main, #mc-dedicated-host-slot, #mr-dedicated-host-slot, .mc-main-wrap, .mc-thread-wrap, #mc-chat-thread, #mc-study-thread {
+          width: 100% !important;
+          max-width: 100vw !important;
+          padding-left: 10px !important;
+          padding-right: 10px !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
+        /* Hero / Greeting / Study Workspace header cards */
+        .mc-hero-bar, .mc-welcome-card, .mc-study-header, [class*="study-header"] {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+          height: auto !important;
+          max-height: none !important;
+          padding: 14px 12px !important;
+          gap: 10px !important;
+        }
+        .mc-hero-bar > *, .mc-welcome-card > *, .mc-study-header > * {
+          max-width: 100% !important;
+          width: 100% !important;
+          height: auto !important;
+        }
+        /* Chat & Study messages */
+        .mc-msg-user, .mc-msg-assistant, .mc-bubble-ai, .mc-answer-body, .mc-markdown, .mc-card {
+          max-width: 100% !important;
+          width: 100% !important;
+          padding: 12px !important;
+          font-size: 14px !important;
+          line-height: 1.6 !important;
+          overflow-x: hidden !important;
+        }
+        /* Wide tables & code blocks scroll horizontally instead of overlapping text */
+        table {
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          border-collapse: collapse !important;
+        }
+        table th, table td {
+          white-space: nowrap !important;
+          padding: 7px 9px !important;
+          font-size: 12.5px !important;
+          line-height: 1.35 !important;
+        }
+        pre {
+          max-width: 100% !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          font-size: 12.5px !important;
+          line-height: 1.45 !important;
+        }
+        /* Composer & bottom toolbars */
+        .mc-composer, .mc-composer-box, [class*="composer"] {
+          width: 100% !important;
+          max-width: 100% !important;
+          padding: 10px !important;
+          border-radius: 16px !important;
+        }
+        .mc-composer textarea, textarea {
+          font-size: 15px !important;
+          line-height: 1.45 !important;
+          width: 100% !important;
+        }
+        .mc-composer-actions, .mc-composer-toolbar, .mc-pill-row, [class*="toolbar"] {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          align-items: center !important;
+          gap: 6px !important;
+          height: auto !important;
+        }
+        .mc-composer select, select {
+          max-width: 155px !important;
+          font-size: 12px !important;
+          text-overflow: ellipsis !important;
+          overflow: hidden !important;
+        }
+        .mc-pill-btn {
+          font-size: 12px !important;
+          padding: 6px 10px !important;
+          height: auto !important;
+          line-height: 1.25 !important;
+          white-space: normal !important;
+          text-align: center !important;
+        }
+        /* Outer Showcase mobile polish */
+        #pm-v92-outer-showcase .pm92-nav {
+          padding: 14px 14px !important;
+          flex-wrap: wrap !important;
+          justify-content: space-between !important;
+          gap: 10px !important;
+        }
+        #pm-v92-outer-showcase .pm92-nav-actions {
+          width: 100% !important;
+          justify-content: flex-start !important;
+          gap: 8px !important;
+        }
+        #pm-v92-outer-showcase .pm92-hero {
+          margin-top: 16px !important;
+          padding: 0 14px 32px !important;
+        }
+        #pm-v92-outer-showcase .pm92-h1 {
+          font-size: 28px !important;
+          line-height: 1.2 !important;
+        }
+        #pm-v92-outer-showcase .pm92-sub {
+          font-size: 14px !important;
+          line-height: 1.55 !important;
+        }
+        #pm-v92-outer-showcase .pm92-cta-row {
+          flex-direction: column !important;
+          width: 100% !important;
+          gap: 10px !important;
+        }
+        #pm-v92-outer-showcase .pm92-cta-lg {
+          width: 100% !important;
+          padding: 12px 16px !important;
+          font-size: 14px !important;
+        }
+        #pm-v92-outer-showcase .pm92-grid {
+          grid-template-columns: 1fr !important;
+          gap: 12px !important;
+        }
+        /* Modals fit mobile viewport cleanly */
+        #pm-v88-auth-overlay > div,
+        #mc-settings-modal-backdrop > div,
+        .mc-settings-dialog {
+          width: calc(100vw - 20px) !important;
+          max-width: calc(100vw - 20px) !important;
+          max-height: 92dvh !important;
+          overflow-y: auto !important;
+        }
+        /* Hide floating scroll arrows on narrow phones so they never cover text */
+        .mc-scroll-fab, .mc-scroll-nav, [id*="scroll-top"], [id*="scroll-bottom"] {
+          opacity: 0.72 !important;
+          transform: scale(0.82) !important;
+          right: 6px !important;
+        }
+      }
+      @media (max-width: 480px) {
+        .mc-study-grid, .mc-preset-grid, [class*="preset-grid"] {
+          grid-template-columns: 1fr !important;
+          gap: 8px !important;
+        }
+      }
+    `;
+    document.head.appendChild(st);
+  }
+  function fixInlineMobileOverlaps() {
+    if (window.innerWidth > 860) return;
+    try {
+      // Ensure Study Workspace banner & any fixed-height flex rows unwrap cleanly on mobile
+      document.querySelectorAll('div, header, section').forEach((el) => {
+        if (el.closest('aside, #pm-v92-outer-showcase')) return;
+        const txt = el.textContent || '';
+        if (txt.includes('Academic Study Workspace') && el.getBoundingClientRect().height < 180) {
+          el.style.setProperty('height', 'auto', 'important');
+          el.style.setProperty('flex-wrap', 'wrap', 'important');
+          el.style.setProperty('gap', '8px', 'important');
+          el.style.setProperty('padding', '12px', 'important');
+        }
+      });
+    } catch (_) {}
+  }
+  function bootV96() {
+    ensureViewportMeta();
+    injectV96MobileCSS();
+    fixInlineMobileOverlaps();
+  }
+  setInterval(fixInlineMobileOverlaps, 700);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootV96);
+  else bootV96();
+})();
+/* PM_V96_MOBILE_END */
