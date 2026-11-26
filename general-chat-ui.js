@@ -15389,7 +15389,7 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     setTimeout(() => {
       ['pm-v88-auth-overlay', 'mc-lock-screen-overlay'].forEach((id) => {
         const m = document.getElementById(id);
-        if (m) m.style.zIndex = '100005';
+        if (m) m.style.zIndex = '2147483640';
       });
     }, 30);
   }
@@ -15409,7 +15409,7 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
     const wrap = document.createElement('div');
     wrap.id = 'pm-v92-outer-showcase';
     wrap.style.cssText = [
-      'position:fixed', 'inset:0', 'z-index:99980', 'overflow-y:auto',
+      'position:fixed', 'inset:0', 'z-index:2147483000', 'overflow-y:auto',
       'background:radial-gradient(circle at 20% 0%, #07291c 0%, #04120c 48%, #020806 100%)',
       'color:#ecfdf5', 'font-family:Inter,system-ui,-apple-system,sans-serif',
       'display:flex', 'flex-direction:column', 'min-height:100vh'
@@ -15453,7 +15453,7 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
       <main class="pm92-hero">
         <div class="pm92-pill">PIXELMORPHIC AI WORKSPACE</div>
         <h1 class="pm92-h1">Code, Research &amp; Create in <span>One AI Workspace</span></h1>
-        <p class="pm92-sub">Build complete web apps in Code Studio, run Deep Research, study smarter, and generate HD visuals ? all in one fast, affordable AI platform starting at \u20B90.</p>
+        <p class="pm92-sub">Build complete web apps in Code Studio, run Deep Research, study smarter, and generate HD visuals &mdash; all in one fast, affordable AI platform starting at \u20B90.</p>
         <div class="pm92-cta-row">
           <button type="button" class="pm92-btn-primary pm92-cta-lg" id="pm92-hero-signup">Create Free Account</button>
           <button type="button" class="pm92-btn-ghost pm92-cta-lg" id="pm92-hero-signin">Sign In</button>
@@ -15903,3 +15903,142 @@ function selfHealAndUpgradeCodeStudioApp(htmlStr, userPrompt = '') {
   else bootV96();
 })();
 /* PM_V96_MOBILE_END */
+
+/* PM_V961_GEMINI_MOBILE_START */
+(function(){
+  if (window.__pmV961Init) return;
+  window.__pmV961Init = true;
+  function injectV961CSS() {
+    if (document.getElementById('pm-v961-gemini-mobile-css')) return;
+    const st = document.createElement('style');
+    st.id = 'pm-v961-gemini-mobile-css';
+    st.textContent = `
+      /* 1. When Outer Showcase is open, completely isolate it (zero bleed from Menu FAB, topbar, or Iron wallpaper) */
+      body.pm-v961-showcase-open > *:not(#pm-v92-outer-showcase):not(#pm-v88-auth-overlay):not(#mc-lock-screen-overlay) {
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+      #pm-v92-outer-showcase {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483000 !important;
+        background: radial-gradient(circle at 50% 0%, #0a291d 0%, #05110c 45%, #030806 100%) !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+      }
+      #pm-v88-auth-overlay, #mc-lock-screen-overlay {
+        z-index: 2147483640 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+      }
+      /* 2. Gemini-App Style Clean Mobile Workspace (<= 860px) */
+      @media (max-width: 860px) {
+        html, body {
+          background: #060e0b !important;
+          background-image: none !important;
+        }
+        body::before, body::after {
+          background-image: none !important;
+          opacity: 0 !important;
+        }
+        /* Sleek Gemini-style Menu pill pinned cleanly top-left */
+        #mc-sidebar-reopen-fab, button[id*="sidebar-reopen"], button[id*="menu-fab"] {
+          top: 10px !important;
+          left: 10px !important;
+          height: 36px !important;
+          padding: 0 12px !important;
+          border-radius: 999px !important;
+          background: rgba(12, 34, 25, 0.92) !important;
+          border: 1px solid rgba(52, 211, 153, 0.35) !important;
+          color: #ecfdf5 !important;
+          font-size: 13px !important;
+          font-weight: 700 !important;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+        }
+        /* Push topbar content cleanly right of the Menu pill so NOTHING overlaps */
+        html body #mc-shell-root .mc-topbar,
+        html body #mr-shell-root .mr-topbar {
+          background: rgba(6, 14, 11, 0.96) !important;
+          backdrop-filter: blur(12px) !important;
+          border: none !important;
+          border-bottom: 1px solid rgba(52, 211, 153, 0.14) !important;
+          border-radius: 0 !important;
+          margin: 0 !important;
+          padding: 10px 12px 10px 96px !important;
+          min-height: 56px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          gap: 8px !important;
+          box-shadow: none !important;
+        }
+        html body #mc-shell-root .mc-topbar .mc-title,
+        html body #mr-shell-root .mr-topbar .mr-title {
+          font-size: 15px !important;
+          font-weight: 700 !important;
+          color: #ecfdf5 !important;
+          margin: 0 !important;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          flex: 1 1 auto !important;
+          min-width: 0 !important;
+        }
+        html body #mc-shell-root .mc-top-actions {
+          flex-shrink: 0 !important;
+        }
+        html body #mc-shell-root #mc-new-chat-btn {
+          background: rgba(16, 185, 129, 0.14) !important;
+          border: 1px solid rgba(52, 211, 153, 0.35) !important;
+          color: #a7f3d0 !important;
+          border-radius: 999px !important;
+          padding: 6px 12px !important;
+          font-size: 12px !important;
+          font-weight: 700 !important;
+          white-space: nowrap !important;
+        }
+        /* Outer Showcase header on mobile: clean centered brand + sleek buttons */
+        #pm-v92-outer-showcase .pm92-nav {
+          padding: 14px 16px !important;
+          border-bottom: 1px solid rgba(52, 211, 153, 0.12) !important;
+          background: rgba(4, 13, 10, 0.92) !important;
+        }
+        #pm-v92-outer-showcase .pm92-brand {
+          font-size: 15px !important;
+        }
+        #pm-v92-outer-showcase .pm92-nav-actions {
+          width: auto !important;
+          gap: 6px !important;
+        }
+        #pm-v92-outer-showcase .pm92-nav-actions .pm92-btn-ghost,
+        #pm-v92-outer-showcase .pm92-nav-actions .pm92-btn-primary {
+          padding: 7px 11px !important;
+          font-size: 12px !important;
+          border-radius: 999px !important;
+        }
+        #pm-v92-outer-showcase .pm92-card {
+          background: rgba(10, 28, 21, 0.88) !important;
+          border: 1px solid rgba(52, 211, 153, 0.2) !important;
+          border-radius: 18px !important;
+        }
+        /* Clean Gemini-style chat composer pill */
+        .mc-composer, .mc-composer-box {
+          background: #0b1b15 !important;
+          border: 1px solid rgba(52, 211, 153, 0.24) !important;
+          border-radius: 22px !important;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4) !important;
+        }
+      }
+    `;
+    document.head.appendChild(st);
+  }
+  function syncShowcaseIsolation() {
+    injectV961CSS();
+    const hasShowcase = Boolean(document.getElementById('pm-v92-outer-showcase'));
+    document.body.classList.toggle('pm-v961-showcase-open', hasShowcase);
+  }
+  setInterval(syncShowcaseIsolation, 250);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', syncShowcaseIsolation);
+  else syncShowcaseIsolation();
+})();
+/* PM_V961_GEMINI_MOBILE_END */
