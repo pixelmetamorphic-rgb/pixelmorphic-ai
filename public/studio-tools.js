@@ -421,6 +421,7 @@
 ;
 ;
 ;
+;
 /* ============================================================================
  * PIXELMORPHIC AI — MORPHIC RESEARCH LAB PRO UI (v11.6 - Researcher Edition)
  * Fixes & Upgrades:
@@ -3054,6 +3055,21 @@ Please check your connection or retry in a few seconds. No placeholder report wa
   setInterval(checkAndMount, 3500);
 })();
 ;
+/* PM_V962_THEME_START */
+(function(){
+  try {
+    if (!localStorage.getItem('pm_v962_clean_theme_migrated')) {
+      const k = 'pm_user_settings_v53';
+      const raw = JSON.parse(localStorage.getItem(k) || '{}');
+      if (!raw || typeof raw !== 'object' || !raw.themeMode || raw.themeMode === 'iron' || raw.themeMode === 'cyber') {
+        const next = (raw && typeof raw === 'object') ? { ...raw, themeMode: 'emerald' } : { themeMode: 'emerald' };
+        localStorage.setItem(k, JSON.stringify(next));
+      }
+      localStorage.setItem('pm_v962_clean_theme_migrated', '1');
+    }
+  } catch (_) {}
+})();
+/* PM_V962_THEME_END */
 /* ============================================================================
  * PIXELMORPHIC AI — GENERAL CHAT, IMAGE STUDIO & LIBRARY UI (v14.0)
  * Root-Level Fixes:
